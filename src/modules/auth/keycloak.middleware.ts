@@ -11,9 +11,10 @@ const getKeycloakConfig = () => {
         'KEYCLOAK_REALM',
         'KEYCLOAK_AUTH_SERVER_URL',
         'KEYCLOAK_SSL_REQUIRED',
-        'KEYCLOAK_RESOURCE',
+        'KEYCLOAK_CLIENT_ID',
         'KEYCLOAK_PUBLIC_CLIENT',
-        'KEYCLOAK_CONFIDENTIAL_PORT'
+        'KEYCLOAK_CONFIDENTIAL_PORT',
+        'SESSION_SECRET'
     ];
 
     const missingVars = requiredVars.filter(varName => !process.env[varName]);
@@ -28,7 +29,7 @@ const getKeycloakConfig = () => {
         realm: process.env.KEYCLOAK_REALM as string,
         'auth-server-url': process.env.KEYCLOAK_AUTH_SERVER_URL as string,
         'ssl-required': process.env.KEYCLOAK_SSL_REQUIRED as string,
-        resource: process.env.KEYCLOAK_RESOURCE as string,
+        resource: process.env.KEYCLOAK_CLIENT_ID as string,
         'public-client': process.env.KEYCLOAK_PUBLIC_CLIENT as string,
         'confidential-port': Number(process.env.KEYCLOAK_CONFIDENTIAL_PORT)
     };

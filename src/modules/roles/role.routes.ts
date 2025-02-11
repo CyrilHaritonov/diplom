@@ -2,6 +2,7 @@ import express from 'express';
 import { RoleService } from './role.service';
 import { logAction } from '../logging/logging.middleware';
 import { LogAction, LogSubject } from '../logging/types';
+import { RoleBindingService } from '../role-bindings/role-binding.service';
 
 export function createRoleRouter(keycloak: any) {
     const router = express.Router();
@@ -12,7 +13,19 @@ export function createRoleRouter(keycloak: any) {
         logAction(LogAction.CREATE, LogSubject.ROLE),
         async (req, res) => {
             try {
-                const { name, for_workspace, create, read, update, can_delete, see_logs } = req.body;
+                // @ts-ignore - Keycloak adds user info to request
+                const userId = req.kauth?.grant?.access_token?.content?.sub;
+                const { name, for_workspace, create, read, update, can_delete, see_logs, give_roles } = req.body;
+
+                // Check if user has give_roles permission in this workspace
+                const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, for_workspace);
+                const canGiveRoles = userRoles.some(rb => rb.role.give_roles);
+
+                if (!canGiveRoles) {
+                    res.status(403).json({ error: 'Access denied: Insufficient permissions to create roles' });
+                    return;
+                }
+
                 const role = await RoleService.create({
                     name,
                     for_workspace,
@@ -20,7 +33,8 @@ export function createRoleRouter(keycloak: any) {
                     read,
                     update,
                     delete: can_delete,
-                    see_logs
+                    see_logs,
+                    give_roles
                 });
                 res.status(201).json(role);
             } catch (error) {
@@ -36,7 +50,24 @@ export function createRoleRouter(keycloak: any) {
         logAction(LogAction.READ, LogSubject.ROLE),
         async (req, res) => {
             try {
+                // @ts-ignore - Keycloak adds user info to request
+                const userId = req.kauth?.grant?.access_token?.content?.sub;
                 const { workspace_id } = req.query;
+
+                if (!workspace_id) {
+                    res.status(400).json({ error: 'workspace_id is required' });
+                    return;
+                }
+
+                // Check if user has read permission in this workspace
+                const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, workspace_id as string);
+                const canRead = userRoles.some(rb => rb.role.read);
+
+                if (!canRead) {
+                    res.status(403).json({ error: 'Access denied: Insufficient permissions to view roles' });
+                    return;
+                }
+
                 const roles = await RoleService.findAll(workspace_id as string);
                 res.json(roles);
             } catch (error) {
@@ -46,15 +77,35 @@ export function createRoleRouter(keycloak: any) {
         }
     );
 
-    // Get role by ID
-    router.get('/:id',
+    // Get role by name in workspace
+    router.get('/:roleName',
         keycloak.protect(),
         logAction(LogAction.READ, LogSubject.ROLE),
         async (req, res): Promise<void> => {
             try {
-                const role = await RoleService.findById(req.params.id);
+                // @ts-ignore - Keycloak adds user info to request
+                const userId = req.kauth?.grant?.access_token?.content?.sub;
+                const { workspace_id } = req.query;
+                const { roleName } = req.params;
+
+                if (!workspace_id) {
+                    res.status(400).json({ error: 'workspace_id is required' });
+                    return;
+                }
+
+                // Check if user has read permission in this workspace
+                const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, workspace_id as string);
+                const canRead = userRoles.some(rb => rb.role.read);
+
+                if (!canRead) {
+                    res.status(403).json({ error: 'Access denied: Insufficient permissions to view roles' });
+                    return;
+                }
+
+                const role = await RoleService.findByName(roleName, workspace_id as string);
                 if (!role) {
                     res.status(404).json({ error: 'Role not found' });
+                    return;
                 }
                 res.json(role);
             } catch (error) {
@@ -66,18 +117,34 @@ export function createRoleRouter(keycloak: any) {
 
     // Update role
     router.put('/:id',
-        keycloak.protect('admin'),
+        keycloak.protect(),
         logAction(LogAction.UPDATE, LogSubject.ROLE),
         async (req, res): Promise<void> => {
             try {
+                // @ts-ignore - Keycloak adds user info to request
+                const userId = req.kauth?.grant?.access_token?.content?.sub;
                 const { name, rights } = req.body;
+
+                // Get the role to find its workspace
+                const existingRole = await RoleService.findById(req.params.id);
+                if (!existingRole) {
+                    res.status(404).json({ error: 'Role not found' });
+                    return;
+                }
+
+                // Check if user has give_roles permission in this workspace
+                const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, existingRole.for_workspace);
+                const canGiveRoles = userRoles.some(rb => rb.role.give_roles);
+
+                if (!canGiveRoles) {
+                    res.status(403).json({ error: 'Access denied: Insufficient permissions to update roles' });
+                    return;
+                }
+
                 const role = await RoleService.update(req.params.id, {
                     name,
                     rights
                 });
-                if (!role) {
-                    res.status(404).json({ error: 'Role not found' });
-                }
                 res.json(role);
             } catch (error) {
                 console.error('Failed to update role:', error);
@@ -88,11 +155,31 @@ export function createRoleRouter(keycloak: any) {
 
     // Delete role
     router.delete('/:id',
-        keycloak.protect('admin'),
+        keycloak.protect(),
         logAction(LogAction.DELETE, LogSubject.ROLE),
         async (req, res) => {
             try {
-                await RoleService.delete(req.params.id);
+                // @ts-ignore - Keycloak adds user info to request
+                const userId = req.kauth?.grant?.access_token?.content?.sub;
+
+                // Get the role to find its workspace
+                const existingRole = await RoleService.findById(req.params.id);
+                if (!existingRole) {
+                    res.status(404).json({ error: 'Role not found' });
+                    return;
+                }
+
+                // Check if user has give_roles permission in this workspace
+                const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, existingRole.for_workspace);
+                const canGiveRoles = userRoles.some(rb => rb.role.give_roles);
+
+                if (!canGiveRoles) {
+                    res.status(403).json({ error: 'Access denied: Insufficient permissions to delete roles' });
+                    return;
+                }
+
+                // Delete role and its bindings
+                await RoleService.deleteWithBindings(req.params.id);
                 res.status(204).send();
             } catch (error) {
                 console.error('Failed to delete role:', error);

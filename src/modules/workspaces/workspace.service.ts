@@ -3,6 +3,10 @@ import { WorkspaceEntity } from './workspace.entity';
 import { RoleService } from '../roles/role.service';
 import { WorkspaceUserService } from '../workspace-users/workspace-user.service';
 import { RoleBindingService } from '../role-bindings/role-binding.service';
+import { SecretEntity } from '../secrets/secret.entity';
+import { WorkspaceUserEntity } from '../workspace-users/workspace-user.entity';
+import { RoleBindingEntity } from '../role-bindings/role-binding.entity';
+import { RoleEntity } from '../roles/role.entity';
 
 export class WorkspaceService {
     private static getRepository() {
@@ -25,7 +29,8 @@ export class WorkspaceService {
             read: true,
             update: true,
             delete: true,
-            see_logs: true
+            see_logs: true,
+            give_roles: true
         });
 
         await RoleService.create({
@@ -35,7 +40,8 @@ export class WorkspaceService {
             read: true,
             update: false,
             delete: false,
-            see_logs: false
+            see_logs: false,
+            give_roles: false
         });
 
         // Add creator as member
@@ -63,14 +69,53 @@ export class WorkspaceService {
         return repository.findOneBy({ id });
     }
 
-    static async update(id: string, name: string): Promise<WorkspaceEntity | null> {
+    static async update(id: string, data: { name: string }): Promise<WorkspaceEntity | null> {
         const repository = this.getRepository();
-        await repository.update(id, { name });
+        await repository.update(id, data);
         return this.findById(id);
     }
 
     static async delete(id: string): Promise<void> {
-        const repository = this.getRepository();
-        await repository.delete(id);
+        const queryRunner = AppDataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+            // Delete all secrets in workspace
+            await queryRunner.manager
+                .getRepository(SecretEntity)
+                .delete({ workspace_id: id });
+
+            // Delete all workspace users
+            await queryRunner.manager
+                .getRepository(WorkspaceUserEntity)
+                .delete({ workspace_id: id });
+
+            // Delete all role bindings for roles in this workspace
+            await queryRunner.manager
+                .getRepository(RoleBindingEntity)
+                .createQueryBuilder('rb')
+                .innerJoin('rb.role', 'role')
+                .where('role.for_workspace = :workspaceId', { workspaceId: id })
+                .delete()
+                .execute();
+
+            // Delete all roles in workspace
+            await queryRunner.manager
+                .getRepository(RoleEntity)
+                .delete({ for_workspace: id });
+
+            // Finally delete the workspace
+            await queryRunner.manager
+                .getRepository(WorkspaceEntity)
+                .delete(id);
+
+            await queryRunner.commitTransaction();
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            throw error;
+        } finally {
+            await queryRunner.release();
+        }
     }
 } 

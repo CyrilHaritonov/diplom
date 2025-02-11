@@ -8,12 +8,16 @@ import { createWorkspaceRouter } from './modules/workspaces/workspace.routes';
 import { createRoleRouter } from './modules/roles/role.routes';
 import { createRoleBindingRouter } from './modules/role-bindings/role-binding.routes';
 import { createWorkspaceUserRouter } from './modules/workspace-users/workspace-user.routes';
+import { createEventBindingRouter } from './modules/event-bindings/event-binding.routes';
+import { createSecretRouter } from './modules/secrets/secret.routes';
+import dotenv from 'dotenv';
 
 const app: Express = express();
 const port = process.env.PORT || 3000;
 
 // Initialize the application
 async function initializeApp() {
+    dotenv.config();
     // Initialize database connection
     await AppDataSource.initialize();
     console.log('Database connection initialized');
@@ -31,6 +35,8 @@ async function initializeApp() {
     app.use('/roles', createRoleRouter(keycloak));
     app.use('/role-bindings', createRoleBindingRouter(keycloak));
     app.use('/workspace-users', createWorkspaceUserRouter(keycloak));
+    app.use('/event-bindings', createEventBindingRouter(keycloak));
+    app.use('/secrets', createSecretRouter(keycloak));
 
     app.get('/', (req: Request, res: Response) => {
         res.send('Express + TypeScript Server');

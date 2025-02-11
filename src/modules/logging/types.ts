@@ -17,7 +17,9 @@ export enum LogSubject {
     LOGOUT = 'logout',
     USER_INFO = 'user_info',
     LOG = 'log',
-    USER_WORKSPACE_ROLES = 'user_workspace_roles'
+    USER_WORKSPACE_ROLES = 'user_workspace_roles',
+    EVENT_BINDING = 'event_binding',
+    SECRET = 'secret'
 }
 
 export interface ActionLog {

@@ -75,4 +75,19 @@ export class LogService {
         await new Promise(resolve => writeStream.end(resolve));
         return filepath;
     }
+
+    static async getWorkspaceLogs(workspaceId: string): Promise<LogEntity[]> {
+        const repository = this.getRepository();
+        
+        return repository.find({
+            where: [
+                { workspace_id: workspaceId },
+                { workspace_id: IsNull() } // Include system logs
+            ],
+            relations: ['workspace'],
+            order: {
+                timestamp: 'DESC'
+            }
+        });
+    }
 } 

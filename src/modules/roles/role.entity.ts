@@ -27,6 +27,15 @@ export class RoleEntity {
     @Column()
     see_logs: boolean;
 
+    @Column()
+    give_roles: boolean;
+
+    @Column({ default: false })
+    add_users: boolean;
+
+    @Column({ default: false })
+    admin_rights: boolean;
+
     @ManyToOne(() => WorkspaceEntity)
     @JoinColumn({ name: 'workspace_id' })
     workspace: WorkspaceEntity;
