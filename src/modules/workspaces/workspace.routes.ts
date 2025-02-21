@@ -10,13 +10,21 @@ export function createWorkspaceRouter(keycloak: any) {
     // Create workspace
     router.post('/',
         keycloak.protect(),
-        logAction(LogAction.CREATE, LogSubject.WORKSPACE),
         async (req, res) => {
             try {
                 const { name } = req.body;
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
+                
                 const workspace = await WorkspaceService.create(name, userId);
+                
+                // Log the action after workspace is created
+                await logAction(
+                    LogAction.CREATE, 
+                    LogSubject.WORKSPACE, 
+                    workspace.id
+                )(req, res, () => {});
+                
                 res.status(201).json(workspace);
             } catch (error) {
                 console.error('Failed to create workspace:', error);
@@ -43,13 +51,14 @@ export function createWorkspaceRouter(keycloak: any) {
     // Get workspace by ID
     router.get('/:id',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.WORKSPACE),
         async (req, res): Promise<void> => {
             try {
                 const workspace = await WorkspaceService.findById(req.params.id);
                 if (!workspace) {
                     res.status(404).json({ error: 'Workspace not found' });
+                    return;
                 }
+                await logAction(LogAction.READ, LogSubject.WORKSPACE, workspace.id)(req, res, () => {});
                 res.json(workspace);
             } catch (error) {
                 console.error('Failed to fetch workspace:', error);
@@ -61,7 +70,6 @@ export function createWorkspaceRouter(keycloak: any) {
     // Update workspace
     router.put('/:id',
         keycloak.protect(),
-        logAction(LogAction.UPDATE, LogSubject.WORKSPACE),
         async (req, res) => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -85,6 +93,9 @@ export function createWorkspaceRouter(keycloak: any) {
                 }
 
                 const workspace = await WorkspaceService.update(req.params.id, { name: name as string });
+                if (workspace) {
+                    await logAction(LogAction.UPDATE, LogSubject.WORKSPACE, workspace.id)(req, res, () => {});
+                }
                 res.json(workspace);
             } catch (error) {
                 console.error('Failed to update workspace:', error);
@@ -96,7 +107,6 @@ export function createWorkspaceRouter(keycloak: any) {
     // Delete workspace
     router.delete('/:id',
         keycloak.protect(),
-        logAction(LogAction.DELETE, LogSubject.WORKSPACE),
         async (req, res) => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -119,6 +129,7 @@ export function createWorkspaceRouter(keycloak: any) {
                 }
 
                 await WorkspaceService.delete(req.params.id);
+                await logAction(LogAction.DELETE, LogSubject.WORKSPACE, req.params.id)(req, res, () => {});
                 res.status(204).send();
             } catch (error) {
                 console.error('Failed to delete workspace:', error);

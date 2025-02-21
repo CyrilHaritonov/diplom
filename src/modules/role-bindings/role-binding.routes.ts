@@ -10,7 +10,6 @@ export function createRoleBindingRouter(keycloak: any) {
     // Create role binding
     router.post('/',
         keycloak.protect(),
-        logAction(LogAction.CREATE, LogSubject.ROLE_BINDING),
         async (req, res) => {
             try {
                 const { user_id, role_id } = req.body;
@@ -37,6 +36,7 @@ export function createRoleBindingRouter(keycloak: any) {
                     user_id,
                     role_id
                 });
+                await logAction(LogAction.CREATE, LogSubject.ROLE_BINDING, role.for_workspace)(req, res, () => {});
                 res.status(201).json(roleBinding);
             } catch (error) {
                 console.error('Failed to create role binding:', error);
@@ -48,12 +48,12 @@ export function createRoleBindingRouter(keycloak: any) {
     // Get user's role bindings
     router.get('/',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.ROLE_BINDING),
         async (req, res) => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
                 const roleBindings = await RoleBindingService.findAll(userId);
+                await logAction(LogAction.READ, LogSubject.ROLE_BINDING)(req, res, () => {});
                 res.json(roleBindings);
             } catch (error) {
                 console.error('Failed to fetch role bindings:', error);
@@ -65,7 +65,6 @@ export function createRoleBindingRouter(keycloak: any) {
     // Get role bindings by user ID
     router.get('/:userId',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.ROLE_BINDING),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -77,6 +76,7 @@ export function createRoleBindingRouter(keycloak: any) {
                 
                 // If user is requesting their own bindings, return them
                 if (requestingUserId === targetUserId) {
+                    await logAction(LogAction.READ, LogSubject.ROLE_BINDING)(req, res, () => {});
                     res.json(roleBindings);
                     return;
                 }
@@ -95,6 +95,7 @@ export function createRoleBindingRouter(keycloak: any) {
                     }
                 }
 
+                await logAction(LogAction.READ, LogSubject.ROLE_BINDING)(req, res, () => {});
                 res.json(authorizedBindings);
             } catch (error) {
                 console.error('Failed to fetch role bindings:', error);
@@ -106,7 +107,6 @@ export function createRoleBindingRouter(keycloak: any) {
     // Get user roles in workspace
     router.get('/user/:userId/workspace/:workspaceId',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.USER_WORKSPACE_ROLES),
         async (req, res) => {
             try {
                 const { userId, workspaceId } = req.params;
@@ -123,6 +123,7 @@ export function createRoleBindingRouter(keycloak: any) {
                 }
 
                 const roleBindings = await RoleBindingService.findByUserAndWorkspace(userId, workspaceId);
+                await logAction(LogAction.READ, LogSubject.USER_WORKSPACE_ROLES, workspaceId)(req, res, () => {});
                 res.json(roleBindings);
             } catch (error) {
                 console.error('Failed to fetch user workspace roles:', error);
@@ -133,11 +134,16 @@ export function createRoleBindingRouter(keycloak: any) {
 
     // Delete role binding
     router.delete('/:id',
-        keycloak.protect('admin'),
-        logAction(LogAction.DELETE, LogSubject.ROLE_BINDING),
+        keycloak.protect(),
         async (req, res) => {
             try {
+                const roleBinding = await RoleBindingService.findById(req.params.id);
+                if (!roleBinding) {
+                    res.status(404).json({ error: 'Role binding not found' });
+                    return;
+                }
                 await RoleBindingService.delete(req.params.id);
+                await logAction(LogAction.DELETE, LogSubject.ROLE_BINDING, roleBinding.role.for_workspace)(req, res, () => {});
                 res.status(204).send();
             } catch (error) {
                 console.error('Failed to delete role binding:', error);

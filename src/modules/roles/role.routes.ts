@@ -10,12 +10,11 @@ export function createRoleRouter(keycloak: any) {
     // Create role
     router.post('/',
         keycloak.protect(),
-        logAction(LogAction.CREATE, LogSubject.ROLE),
         async (req, res) => {
             try {
+                const { name, for_workspace, create, read, update, can_delete, see_logs, give_roles, add_users, admin_rights } = req.body;
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const { name, for_workspace, create, read, update, can_delete, see_logs, give_roles } = req.body;
 
                 // Check if user has give_roles permission in this workspace
                 const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, for_workspace);
@@ -34,8 +33,11 @@ export function createRoleRouter(keycloak: any) {
                     update,
                     delete: can_delete,
                     see_logs,
-                    give_roles
+                    give_roles,
+                    add_users,
+                    admin_rights
                 });
+                await logAction(LogAction.CREATE, LogSubject.ROLE, for_workspace)(req, res, () => {});
                 res.status(201).json(role);
             } catch (error) {
                 console.error('Failed to create role:', error);
@@ -47,7 +49,6 @@ export function createRoleRouter(keycloak: any) {
     // Get all roles (optionally filtered by workspace)
     router.get('/',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.ROLE),
         async (req, res) => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -69,6 +70,7 @@ export function createRoleRouter(keycloak: any) {
                 }
 
                 const roles = await RoleService.findAll(workspace_id as string);
+                await logAction(LogAction.READ, LogSubject.ROLE, workspace_id as string)(req, res, () => {});
                 res.json(roles);
             } catch (error) {
                 console.error('Failed to fetch roles:', error);
@@ -80,7 +82,6 @@ export function createRoleRouter(keycloak: any) {
     // Get role by name in workspace
     router.get('/:roleName',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.ROLE),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -107,6 +108,7 @@ export function createRoleRouter(keycloak: any) {
                     res.status(404).json({ error: 'Role not found' });
                     return;
                 }
+                await logAction(LogAction.READ, LogSubject.ROLE, workspace_id as string)(req, res, () => {});
                 res.json(role);
             } catch (error) {
                 console.error('Failed to fetch role:', error);
@@ -118,12 +120,21 @@ export function createRoleRouter(keycloak: any) {
     // Update role
     router.put('/:id',
         keycloak.protect(),
-        logAction(LogAction.UPDATE, LogSubject.ROLE),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const { name, rights } = req.body;
+                const { 
+                    name, 
+                    create, 
+                    read, 
+                    update, 
+                    can_delete, 
+                    see_logs, 
+                    give_roles,
+                    add_users,
+                    admin_rights 
+                } = req.body;
 
                 // Get the role to find its workspace
                 const existingRole = await RoleService.findById(req.params.id);
@@ -143,8 +154,18 @@ export function createRoleRouter(keycloak: any) {
 
                 const role = await RoleService.update(req.params.id, {
                     name,
-                    rights
+                    create,
+                    read,
+                    update,
+                    delete: can_delete,
+                    see_logs,
+                    give_roles,
+                    add_users,
+                    admin_rights
                 });
+                if (role) {
+                    await logAction(LogAction.UPDATE, LogSubject.ROLE, existingRole.for_workspace)(req, res, () => {});
+                }
                 res.json(role);
             } catch (error) {
                 console.error('Failed to update role:', error);
@@ -156,7 +177,6 @@ export function createRoleRouter(keycloak: any) {
     // Delete role
     router.delete('/:id',
         keycloak.protect(),
-        logAction(LogAction.DELETE, LogSubject.ROLE),
         async (req, res) => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -180,6 +200,7 @@ export function createRoleRouter(keycloak: any) {
 
                 // Delete role and its bindings
                 await RoleService.deleteWithBindings(req.params.id);
+                await logAction(LogAction.DELETE, LogSubject.ROLE, existingRole.for_workspace)(req, res, () => {});
                 res.status(204).send();
             } catch (error) {
                 console.error('Failed to delete role:', error);

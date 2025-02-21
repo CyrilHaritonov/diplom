@@ -15,7 +15,9 @@ export class RoleService {
         update: boolean,
         delete: boolean,
         see_logs: boolean,
-        give_roles: boolean
+        give_roles: boolean,
+        add_users: boolean,
+        admin_rights: boolean
     }): Promise<RoleEntity> {
         const repository = this.getRepository();
         const role = repository.create(data);
@@ -40,7 +42,14 @@ export class RoleService {
 
     static async update(id: string, data: {
         name?: string,
-        rights?: string
+        create?: boolean,
+        read?: boolean,
+        update?: boolean,
+        delete?: boolean,
+        see_logs?: boolean,
+        give_roles?: boolean,
+        add_users?: boolean,
+        admin_rights?: boolean
     }): Promise<RoleEntity | null> {
         const repository = this.getRepository();
         await repository.update(id, data);

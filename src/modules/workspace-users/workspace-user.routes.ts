@@ -10,12 +10,11 @@ export function createWorkspaceUserRouter(keycloak: any) {
     // Add user to workspace
     router.post('/',
         keycloak.protect(),
-        logAction(LogAction.CREATE, LogSubject.WORKSPACE_USER),
         async (req, res) => {
             try {
+                const { workspace_id, user_id } = req.body;
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const { workspace_id, user_id } = req.body;
 
                 // Check if user has add_users permission in this workspace
                 const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, workspace_id);
@@ -30,6 +29,7 @@ export function createWorkspaceUserRouter(keycloak: any) {
                     workspace_id,
                     user_id
                 });
+                await logAction(LogAction.CREATE, LogSubject.WORKSPACE_USER, workspace_id)(req, res, () => {});
                 res.status(201).json(workspaceUser);
             } catch (error) {
                 console.error('Failed to add user to workspace:', error);
@@ -41,12 +41,11 @@ export function createWorkspaceUserRouter(keycloak: any) {
     // Get all workspace users (optionally filtered by workspace)
     router.get('/',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.WORKSPACE_USER),
         async (req, res) => {
             try {
+                const { workspace_id } = req.query;
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const { workspace_id } = req.query;
 
                 if (!workspace_id) {
                     res.status(400).json({ error: 'workspace_id is required' });
@@ -63,6 +62,7 @@ export function createWorkspaceUserRouter(keycloak: any) {
                 }
 
                 const workspaceUsers = await WorkspaceUserService.findAll(workspace_id as string);
+                await logAction(LogAction.READ, LogSubject.WORKSPACE_USER, workspace_id as string)(req, res, () => {});
                 res.json(workspaceUsers);
             } catch (error) {
                 console.error('Failed to fetch workspace users:', error);
@@ -74,18 +74,18 @@ export function createWorkspaceUserRouter(keycloak: any) {
     // Get workspace user for current user
     router.get('/me/:workspaceId',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.WORKSPACE_USER),
         async (req, res): Promise<void> => {
             try {
+                const workspaceId = req.params.workspaceId;
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const workspaceId = req.params.workspaceId;
 
                 const workspaceUser = await WorkspaceUserService.findByUserAndWorkspace(userId, workspaceId);
                 if (!workspaceUser) {
                     res.status(404).json({ error: 'You are not a member of this workspace' });
                     return;
                 }
+                await logAction(LogAction.READ, LogSubject.WORKSPACE_USER, workspaceId)(req, res, () => {});
                 res.json(workspaceUser);
             } catch (error) {
                 console.error('Failed to fetch workspace user:', error);
@@ -97,12 +97,11 @@ export function createWorkspaceUserRouter(keycloak: any) {
     // Check if user is in workspace
     router.get('/check/:workspaceId/:userId',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.WORKSPACE_USER),
         async (req, res) => {
             try {
+                const { workspaceId, userId } = req.params;
                 // @ts-ignore - Keycloak adds user info to request
                 const requestingUserId = req.kauth?.grant?.access_token?.content?.sub;
-                const { workspaceId, userId } = req.params;
 
                 // Check if requesting user has add_users permission in this workspace
                 const userRoles = await RoleBindingService.findByUserAndWorkspace(requestingUserId, workspaceId);
@@ -114,6 +113,7 @@ export function createWorkspaceUserRouter(keycloak: any) {
                 }
 
                 const workspaceUser = await WorkspaceUserService.findByUserAndWorkspace(userId, workspaceId);
+                await logAction(LogAction.READ, LogSubject.WORKSPACE_USER, workspaceId)(req, res, () => {});
                 res.json({ isMember: !!workspaceUser });
             } catch (error) {
                 console.error('Failed to check workspace membership:', error);
@@ -125,18 +125,15 @@ export function createWorkspaceUserRouter(keycloak: any) {
     // Remove user from workspace
     router.delete('/:id',
         keycloak.protect(),
-        logAction(LogAction.DELETE, LogSubject.WORKSPACE_USER),
         async (req, res) => {
             try {
-                // @ts-ignore - Keycloak adds user info to request
-                const userId = req.kauth?.grant?.access_token?.content?.sub;
-
-                // Get workspace user to check workspace
                 const workspaceUser = await WorkspaceUserService.findById(req.params.id);
                 if (!workspaceUser) {
                     res.status(404).json({ error: 'Workspace user not found' });
                     return;
                 }
+                // @ts-ignore - Keycloak adds user info to request
+                const userId = req.kauth?.grant?.access_token?.content?.sub;
 
                 // Check if user has add_users permission in this workspace
                 const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, workspaceUser.workspace_id);
@@ -148,6 +145,7 @@ export function createWorkspaceUserRouter(keycloak: any) {
                 }
 
                 await WorkspaceUserService.delete(req.params.id);
+                await logAction(LogAction.DELETE, LogSubject.WORKSPACE_USER, workspaceUser.workspace_id)(req, res, () => {});
                 res.status(204).send();
             } catch (error) {
                 console.error('Failed to remove user from workspace:', error);

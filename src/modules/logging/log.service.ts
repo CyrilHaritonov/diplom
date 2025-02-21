@@ -81,8 +81,7 @@ export class LogService {
         
         return repository.find({
             where: [
-                { workspace_id: workspaceId },
-                { workspace_id: IsNull() } // Include system logs
+                { workspace_id: workspaceId }
             ],
             relations: ['workspace'],
             order: {

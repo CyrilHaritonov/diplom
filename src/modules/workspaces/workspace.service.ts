@@ -16,7 +16,8 @@ export class WorkspaceService {
     static async create(name: string, userId: string): Promise<WorkspaceEntity> {
         const repository = this.getRepository();
         const workspace = repository.create({ 
-            name, 
+            name,
+            owner_id: userId,
             created_by: userId 
         });
         const savedWorkspace = await repository.save(workspace);
@@ -30,7 +31,9 @@ export class WorkspaceService {
             update: true,
             delete: true,
             see_logs: true,
-            give_roles: true
+            give_roles: true,
+            add_users: true,
+            admin_rights: true
         });
 
         await RoleService.create({
@@ -41,7 +44,9 @@ export class WorkspaceService {
             update: false,
             delete: false,
             see_logs: false,
-            give_roles: false
+            give_roles: false,
+            add_users: false,
+            admin_rights: false
         });
 
         // Add creator as member
@@ -97,7 +102,6 @@ export class WorkspaceService {
                 .createQueryBuilder('rb')
                 .innerJoin('rb.role', 'role')
                 .where('role.for_workspace = :workspaceId', { workspaceId: id })
-                .delete()
                 .execute();
 
             // Delete all roles in workspace

@@ -10,12 +10,11 @@ export function createSecretRouter(keycloak: any) {
     // Create secret
     router.post('/',
         keycloak.protect(),
-        logAction(LogAction.CREATE, LogSubject.SECRET),
-        async (req, res): Promise<void> => {
+        async (req, res) => {
             try {
+                const { workspace_id, name, value, expires_at } = req.body;
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const { name, value, workspace_id, expires_at } = req.body;
 
                 // Check if user has create permission in this workspace
                 const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, workspace_id);
@@ -33,6 +32,7 @@ export function createSecretRouter(keycloak: any) {
                     created_by: userId,
                     expires_at: expires_at ? new Date(expires_at) : undefined
                 });
+                await logAction(LogAction.CREATE, LogSubject.SECRET, workspace_id)(req, res, () => {});
                 res.status(201).json(secret);
             } catch (error) {
                 console.error('Failed to create secret:', error);
@@ -44,7 +44,6 @@ export function createSecretRouter(keycloak: any) {
     // Get all secrets for workspace
     router.get('/workspace/:workspaceId',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.SECRET),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -61,6 +60,7 @@ export function createSecretRouter(keycloak: any) {
                 }
 
                 const secrets = await SecretService.findAll(workspaceId);
+                await logAction(LogAction.READ, LogSubject.SECRET, workspaceId)(req, res, () => {});
                 res.json(secrets);
             } catch (error) {
                 console.error('Failed to fetch secrets:', error);
@@ -72,7 +72,6 @@ export function createSecretRouter(keycloak: any) {
     // Get secret by ID
     router.get('/:id',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.SECRET),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -93,6 +92,7 @@ export function createSecretRouter(keycloak: any) {
                     return;
                 }
 
+                await logAction(LogAction.READ, LogSubject.SECRET, secret.workspace_id)(req, res, () => {});
                 res.json(secret);
             } catch (error) {
                 console.error('Failed to fetch secret:', error);
@@ -104,7 +104,6 @@ export function createSecretRouter(keycloak: any) {
     // Update secret
     router.put('/:id',
         keycloak.protect(),
-        logAction(LogAction.UPDATE, LogSubject.SECRET),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -132,6 +131,9 @@ export function createSecretRouter(keycloak: any) {
                     value,
                     expires_at: expires_at ? new Date(expires_at) : null
                 });
+                if (secret) {
+                    await logAction(LogAction.UPDATE, LogSubject.SECRET, existingSecret.workspace_id)(req, res, () => {});
+                }
                 res.json(secret);
             } catch (error) {
                 console.error('Failed to update secret:', error);
@@ -143,7 +145,6 @@ export function createSecretRouter(keycloak: any) {
     // Delete secret
     router.delete('/:id',
         keycloak.protect(),
-        logAction(LogAction.DELETE, LogSubject.SECRET),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -166,6 +167,7 @@ export function createSecretRouter(keycloak: any) {
                 }
 
                 await SecretService.delete(req.params.id);
+                await logAction(LogAction.DELETE, LogSubject.SECRET, secret.workspace_id)(req, res, () => {});
                 res.status(204).send();
             } catch (error) {
                 console.error('Failed to delete secret:', error);
