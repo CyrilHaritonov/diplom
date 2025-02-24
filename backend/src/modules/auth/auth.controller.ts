@@ -2,6 +2,11 @@ import { Request, Response } from 'express';
 import { getKeycloak } from './keycloak.middleware';
 import axios from 'axios';
 
+interface User {
+    id: string,
+    username: string
+}
+
 export class AuthController {
     static login(req: Request, res: Response) {
         return getKeycloak().protect()(req, res, () => {
@@ -154,8 +159,12 @@ export class AuthController {
                 },
             });
 
-            const users = response.data;
-            res.json(users);
+            const users: User[] = response.data;
+            const filteredUsers = users.map(user => ({
+                id: user.id,
+                username: user.username
+            }));
+            res.json(filteredUsers);
         } catch (error) {
             console.error('Failed to retrieve users:', error);
             res.status(500).json({ error: 'Failed to retrieve users' });

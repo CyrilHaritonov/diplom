@@ -31,6 +31,7 @@ const SecretsPage: FC = () => {
   const [selectedSecret, setSelectedSecret] = useState<Secret | null>(null);
   const [showValue, setShowValue] = useState(false);
   const [workspaceName, setWorkspaceName] = useState<string | null>('');
+  const [searchTerm, setSearchTerm] = useState('');
   const axiosInstance = useAxios(import.meta.env.VITE_API_URL);
 
   const handleOpenModal = () => {
@@ -126,8 +127,15 @@ const SecretsPage: FC = () => {
 
   const handleCopyToClipboard = (value: string) => {
     navigator.clipboard.writeText(value);
-    alert('Секрет скопирован в буфер обмена!');
   };
+
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  };
+
+  const filteredSecrets = secrets.filter(secret =>
+    secret.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   useEffect(() => {
     fetchSecrets(); // Fetch secrets when the component mounts
@@ -154,6 +162,17 @@ const SecretsPage: FC = () => {
       <Button variant="contained" onClick={handleOpenModal}>
         Создать секрет
       </Button>
+
+      {/* Search Bar */}
+      <TextField
+        margin="dense"
+        label="Поиск секрета"
+        type="text"
+        fullWidth
+        variant="outlined"
+        value={searchTerm}
+        onChange={handleSearchChange}
+      />
 
       {/* Create Secret Modal */}
       <Dialog open={openModal} onClose={handleCloseModal}>
@@ -200,7 +219,7 @@ const SecretsPage: FC = () => {
 
       {/* Secrets List */}
       <List className="secrets-list">
-        {secrets.map(secret => (
+        {filteredSecrets.map(secret => (
           <ListItem key={secret.id} onClick={() => handleOpenSecretModal(secret)}>
             <ListItemText
               primary={<span style={{ color: 'blue', textDecoration: 'underline', cursor: 'pointer' }}>{secret.name}</span>}

@@ -22,6 +22,13 @@ export class WorkspaceUserService {
             relations: ['workspace']
         });
     }
+    static async findByUserId(userId: string): Promise<WorkspaceUserEntity[]> {
+        const repository = this.getRepository();
+        return repository.find({
+            where: { user_id: userId },
+            relations: ['workspace']
+        });
+    }
 
     static async findById(id: string): Promise<WorkspaceUserEntity | null> {
         const repository = this.getRepository();

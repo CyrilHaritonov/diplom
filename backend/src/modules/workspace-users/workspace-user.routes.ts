@@ -62,8 +62,18 @@ export function createWorkspaceUserRouter(keycloak: any) {
                 }
 
                 const workspaceUsers = await WorkspaceUserService.findAll(workspace_id as string);
+                
+                // Add roles to each workspace user
+                const usersWithRoles = await Promise.all(workspaceUsers.map(async (user) => {
+                    const roles = await RoleBindingService.findByUserAndWorkspace(user.user_id, workspace_id as string);
+                    return {
+                        ...user,
+                        roles: roles.map(roleBinding => roleBinding.role.name) // Assuming role has a 'name' property
+                    };
+                }));
+
                 await logAction(LogAction.READ, LogSubject.WORKSPACE_USER, workspace_id as string)(req, res, () => {});
-                res.json(workspaceUsers);
+                res.json(usersWithRoles);
             } catch (error) {
                 console.error('Failed to fetch workspace users:', error);
                 res.status(500).json({ error: 'Failed to fetch workspace users' });

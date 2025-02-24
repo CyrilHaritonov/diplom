@@ -22,22 +22,22 @@ export class LogService {
         const repository = this.getRepository();
 
         // Get all workspaces where user is a member
-        const workspaceUsers = await WorkspaceUserService.findAll(userId);
+        const workspaceUsers = await WorkspaceUserService.findByUserId(userId);
         const workspaceIds = workspaceUsers.map(wu => wu.workspace_id);
-
+        console.log(workspaceUsers, workspaceIds)
         // Get user's roles in these workspaces
         const roleBindings = await Promise.all(
             workspaceIds.map(workspaceId => 
                 RoleBindingService.findByUserAndWorkspace(userId, workspaceId)
             )
         );
-
+        console.log(roleBindings)
         // Filter workspaces where user has see_logs permission
         const authorizedWorkspaceIds = roleBindings
             .flat()
             .filter(rb => rb?.role.see_logs)
             .map(rb => rb.role.for_workspace);
-
+        console.log(authorizedWorkspaceIds)
         // Get logs only from authorized workspaces
         if (authorizedWorkspaceIds.length === 0) {
             return [];
@@ -45,8 +45,7 @@ export class LogService {
 
         return repository.find({
             where: [
-                { workspace_id: In(authorizedWorkspaceIds) },
-                { workspace_id: IsNull() } // System logs without workspace
+                { workspace_id: In(authorizedWorkspaceIds) }
             ],
             relations: ['workspace'],
             order: {
@@ -58,7 +57,7 @@ export class LogService {
     static async exportLogsToFile(userId: string): Promise<string> {
         const logs = await this.getLogs(userId);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `logs_${timestamp}.txt`;
+        const filename = `logs_${timestamp}.csv`;
         const filepath = path.join(process.cwd(), 'exports', filename);
 
         // Ensure exports directory exists
@@ -66,9 +65,12 @@ export class LogService {
         await fs.promises.mkdir(dir, { recursive: true });
 
         const writeStream = createWriteStream(filepath);
+        // Write CSV header
+        writeStream.write('date,time,user_id,action,subject\n');
 
         for (const log of logs) {
-            const logEntry = `[${log.timestamp.toISOString()}] User: ${log.user_id} | Action: ${log.action} | Subject: ${log.subject}\n`;
+            const humanReadableDate = new Date(log.timestamp).toLocaleString('en-GB', { hour12: false }); // Convert to human-readable format in 24-hour format
+            const logEntry = `${humanReadableDate},${log.user_id},${log.action},${log.subject}\n`;
             writeStream.write(logEntry);
         }
 

@@ -156,25 +156,6 @@ const WorkspacesPage: FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {keycloak.authenticated && <Button 
-        variant="outlined" 
-        size="large"
-        onClick={() => {
-          keycloak.logout()
-        }}
-      >
-        Выйти
-      </Button>}
-      {!keycloak.authenticated && <Button 
-        variant="outlined" 
-        size="large"
-        onClick={() => {
-          keycloak.login()
-        }}
-      >
-        Войти
-      </Button>}
     </div>
   )
 }

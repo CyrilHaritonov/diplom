@@ -6,17 +6,6 @@ import { LogAction, LogSubject } from '../logging/types';
 export function createAuthRouter(keycloak: any) {
     const router = express.Router();
 
-    // Public routes
-    router.get('/login', 
-        logAction(LogAction.ATTEMPT, LogSubject.LOGIN),
-        AuthController.login
-    );
-    
-    router.get('/logout',
-        logAction(LogAction.ATTEMPT, LogSubject.LOGOUT), 
-        AuthController.logout
-    );
-
     // Protected routes
     router.get('/userinfo', 
         keycloak.protect(),
@@ -29,7 +18,7 @@ export function createAuthRouter(keycloak: any) {
         logAction(LogAction.ACCESS, LogSubject.USER_INFO),
         AuthController.getUserIdByUsername);
 
-    // New route for getting username by user ID
+    // Route for getting username by user ID
     router.get('/user-id/:userId',
         keycloak.protect(),
         logAction(LogAction.ACCESS, LogSubject.USER_INFO),

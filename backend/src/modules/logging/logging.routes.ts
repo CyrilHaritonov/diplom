@@ -10,7 +10,7 @@ export function createLoggingRouter(keycloak: any) {
     // Get workspace logs
     router.get('/workspace/:workspaceId',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.LOG),
+        logAction(LogAction.ACCESS, LogSubject.LOG),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -38,6 +38,7 @@ export function createLoggingRouter(keycloak: any) {
     // Export logs route
     router.get('/export',
         keycloak.protect(),
+        logAction(LogAction.EXPORT, LogSubject.LOG),
         async (req, res) => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -54,6 +55,7 @@ export function createLoggingRouter(keycloak: any) {
     // Get logs
     router.get('/',
         keycloak.protect(),
+        logAction(LogAction.ACCESS, LogSubject.LOG),
         async (req, res) => {
             try {
                 // @ts-ignore - Keycloak adds user info to request

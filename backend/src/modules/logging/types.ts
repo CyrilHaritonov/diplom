@@ -3,7 +3,6 @@ export enum LogAction {
     READ = 'read',
     UPDATE = 'update',
     DELETE = 'delete',
-    ATTEMPT = 'attempt',
     ACCESS = 'access',
     EXPORT = 'export'
 }

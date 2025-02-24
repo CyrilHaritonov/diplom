@@ -113,7 +113,16 @@ const RolesPage: FC = () => {
     const roleToEdit = roles.find(role => role.id === roleId);
     if (roleToEdit) {
       setRoleName(roleToEdit.name);
-      setPermissions(roleToEdit.permissions);
+      setPermissions({
+        create: roleToEdit.create,
+        read: roleToEdit.read,
+        update: roleToEdit.update,
+        deletable: roleToEdit.deletable,
+        see_logs: roleToEdit.see_logs,
+        give_roles: roleToEdit.give_roles,
+        add_users: roleToEdit.add_users,
+        admin_rights: roleToEdit.admin_rights,
+    });
       setEditingRoleId(roleId);
       handleOpenModal();
     }
@@ -123,10 +132,10 @@ const RolesPage: FC = () => {
     try {
       await axiosInstance.current?.put(`/roles/${roleId}`, {
         name: roleName,
-        rights: permissions,
+        ...permissions,
       });
       setRoles((prev) => prev.map(role => 
-        role.id === roleId ? { ...role, name: roleName, permissions } : role
+        role.id === roleId ? { ...role, name: roleName, ...permissions } : role
       ));
       handleCloseModal(); // Close the modal after updating the role
     } catch (error) {

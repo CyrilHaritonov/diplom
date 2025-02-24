@@ -7,13 +7,15 @@ interface User {
   id: string;
   user_id: string;
   name: string;
-  role: string; // Assuming you have a role property
   username: string;
+  roles?: string[]; // Add roles property to store user roles
 }
 
 interface Role {
   id: string;
-  name: string;
+  role: {
+    name: string
+  }
 }
 
 const UsersPage: FC = () => {
@@ -25,6 +27,7 @@ const UsersPage: FC = () => {
   const [userName, setUserName] = useState('');
   const [openRoleModal, setOpenRoleModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // State for search term
   const axiosInstance = useAxios(import.meta.env.VITE_API_URL);
 
   const fetchUsers = async () => {
@@ -125,8 +128,19 @@ const UsersPage: FC = () => {
     }
   };
 
+  // New search handler
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  };
+
+  // Filter users based on the search term
+  const filteredUsers = users.filter(user =>
+    user.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   useEffect(() => {
     fetchUsers(); // Fetch users when the component mounts
+    console.log(users);
   }, [workspaceId]); // Re-fetch if workspaceId changes
 
   return (
@@ -146,11 +160,23 @@ const UsersPage: FC = () => {
       </Button>
       <Button variant="contained" onClick={() => handleOpenModal()}>Добавить пользователя</Button>
 
+      {/* Search Bar */}
+      <TextField
+        margin="dense"
+        label="Поиск пользователя"
+        type="text"
+        fullWidth
+        variant="outlined"
+        value={searchTerm}
+        onChange={handleSearchChange}
+      />
+
       {/* Users List */}
       <div className="users-list">
-        {users.map(user => (
+        {filteredUsers.map(user => (
           <div key={user.id} className="user-item">
             <h4>{user.username}</h4>
+            <p>Роли: {user.roles?.join(', ') || 'Нет ролей'}</p> {/* Display user roles */}
             <Button variant="outlined" onClick={() => handleRoleAssignment(user.user_id)}>Назначить роль</Button>
             <Button variant="outlined" onClick={() => handleDeleteUser(user.id)}>Удалить</Button>
           </div>
@@ -191,7 +217,7 @@ const UsersPage: FC = () => {
           <List>
             {roles.map(role => (
               <ListItem key={role.id}>
-                <ListItemText primary={role.name} />
+                <ListItemText primary={role.role.name} />
                 <Button variant="outlined" onClick={() => handleAssignRole(role.id)}>Назначить</Button>
               </ListItem>
             ))}
