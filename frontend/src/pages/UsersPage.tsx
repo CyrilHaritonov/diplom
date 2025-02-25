@@ -1,234 +1,421 @@
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, List, ListItem, ListItemText } from '@mui/material';
-import { FC, useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { useAxios } from '../utils/hooks';
+"use client"
+
+import type React from "react"
+
+import { type FC, useState, useEffect, useCallback } from "react"
+import { Link, useParams, useNavigate } from "react-router-dom"
+import {
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Typography,
+  Box,
+  Container,
+} from "@mui/material"
+import { ArrowBack, Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material"
+import { useAxios } from "../utils/hooks"
 
 interface User {
-  id: string;
-  user_id: string;
-  name: string;
-  username: string;
-  roles?: string[]; // Add roles property to store user roles
+  id: string
+  user_id: string
+  name: string
+  username: string
+  roles?: string[]
 }
 
 interface Role {
-  id: string;
-  role: {
-    name: string
-  }
+  id: string
+  name: string
+}
+
+interface RoleBinding {
+  id: string
+  name: string
 }
 
 const UsersPage: FC = () => {
-  const { workspaceId } = useParams();
-  const [users, setUsers] = useState<User[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [openModal, setOpenModal] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [userName, setUserName] = useState('');
-  const [openRoleModal, setOpenRoleModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [searchTerm, setSearchTerm] = useState(''); // State for search term
-  const axiosInstance = useAxios(import.meta.env.VITE_API_URL);
+  const { workspaceId } = useParams<{ workspaceId: string }>()
+  const navigate = useNavigate()
+  const [users, setUsers] = useState<User[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const [openModal, setOpenModal] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [userName, setUserName] = useState("")
+  const [openRoleModal, setOpenRoleModal] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [workspaceName, setWorkspaceName] = useState<string | null>("")
+  const axiosInstance = useAxios(import.meta.env.VITE_API_URL)
+  const [assignedRoles, setAssignedRoles] = useState<string[]>([])
+  const [openRolesModal, setOpenRolesModal] = useState(false)
+  const [rolesList, setRolesList] = useState<RoleBinding[]>([])
+  const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false)
+  const [userIdToDelete, setUserIdToDelete] = useState<string | null>(null)
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
-      const response = await axiosInstance.current?.get(`/workspace-users/?workspace_id=${workspaceId}`);
-      const data = response?.data;
-      const usernameResponse = await axiosInstance.current?.get(`/auth/users`);
-      const usernameData = usernameResponse?.data;
+      const response = await axiosInstance.current?.get(`/workspace-users/?workspace_id=${workspaceId}`)
+      const data = response?.data
+      const usernameResponse = await axiosInstance.current?.get(`/auth/users`)
+      const usernameData = usernameResponse?.data
       const combinedData = data.map((user: User) => {
-        const usernameInfo = usernameData.find((u: User) => u.id === user.user_id);
+        const usernameInfo = usernameData.find((u: User) => u.id === user.user_id)
         return {
           ...user,
-          username: usernameInfo ? usernameInfo.username : null // Add username field
-        };
-      });
-      setUsers(combinedData); // Set the fetched users with usernames
+          username: usernameInfo ? usernameInfo.username : null,
+        }
+      })
+      setUsers(combinedData)
     } catch (error) {
-      console.error('Failed to fetch users:', error);
+      console.error("Failed to fetch users:", error)
     }
-  };
+  }, [axiosInstance, workspaceId])
 
   const fetchRoles = async () => {
     try {
-      const response = await axiosInstance.current?.get(`/roles?workspace_id=${workspaceId}`);
-      const data = response?.data;
-      setRoles(data); // Set the fetched roles
+      const response = await axiosInstance.current?.get(`/roles?workspace_id=${workspaceId}`)
+      const data = response?.data
+      console.log(data);
+      setRoles(data)
     } catch (error) {
-      console.error('Failed to fetch roles:', error);
+      console.error("Failed to fetch roles:", error)
     }
-  };
+  }
 
-  const handleOpenModal = (userId: string | null = null) => {
-    setSelectedUserId(userId);
-    if (userId) {
-      const userToEdit = users.find(user => user.id === userId);
+  const fetchWorkspace = useCallback(async () => {
+    try {
+      const response = await axiosInstance.current?.get(`/workspaces/${workspaceId}`)
+      const data = response?.data
+      setWorkspaceName(data.name)
+    } catch (error) {
+      console.error("Failed to fetch workspace:", error)
+    }
+  }, [axiosInstance, workspaceId])
+
+  const handleOpenModal = (selectedUser: User| null = null) => {
+    setSelectedUser(selectedUser)
+    if (selectedUser) {
+      const userToEdit = users.find((user) => user.id === selectedUser.id)
       if (userToEdit) {
-        setUserName(userToEdit.name);
+        setUserName(userToEdit.name)
       }
     } else {
-      setUserName('');
+      setUserName("")
     }
-    setOpenModal(true);
-  };
+    setOpenModal(true)
+  }
 
   const handleCloseModal = () => {
-    setOpenModal(false);
-    setUserName('');
-    setSelectedUserId(null);
+    setOpenModal(false)
+    setUserName("")
+    setSelectedUser(null)
+    setErrorMessage("")
+  }
+
+  const handleRoleListing = async (user: User) => {
+    try {
+      console.log(user);
+      const response = await axiosInstance.current?.get(`/role-bindings/user/${user.user_id}/workspace/${workspaceId}`);
+      const data = response?.data;
+      setRolesList(data.map((role_binding: { id: string, role: {name: string} }) => {
+        return {
+          id: role_binding.id, 
+          name: role_binding.role.name
+        }
+      }));
+      setOpenRolesModal(true);
+    } catch (error) {
+      console.error("Failed to fetch roles:", error);
+    }
+  };
+
+  const handleDeleteRole = async (roleBinding: RoleBinding) => {
+    try {
+      await axiosInstance.current?.delete(`/role-bindings/${roleBinding.id}`);
+      setRolesList((prev) => prev.filter((item) => item.id !== roleBinding.id));
+      fetchUsers();
+    } catch (error) {
+      console.error("Failed to delete role:", error);
+    }
+  };
+
+  const handleCloseRolesModal = () => {
+    setOpenRolesModal(false);
+    setRolesList([]);
   };
 
   const handleSaveUser = async (event: React.FormEvent) => {
-    event.preventDefault();
+    event.preventDefault()
     try {
-      if (selectedUserId) {
-        // Update existing user
-        await axiosInstance.current?.put(`/workspace-users`, { name: userName });
+      if (selectedUser) {
+        await axiosInstance.current?.put(`/workspace-users`, { name: userName })
       } else {
-        const responce = await axiosInstance.current?.get(`/auth/user/${userName}`);
-        const userId = responce?.data?.userId;
-        // Create new user
-        await axiosInstance.current?.post(`/workspace-users`, { user_id: userId, workspace_id: workspaceId });
+        const response = await axiosInstance.current?.get(`/auth/user/${userName}`)
+        const userId = response?.data?.userId
+        await axiosInstance.current?.post(`/workspace-users`, { user_id: userId, workspace_id: workspaceId })
       }
-      fetchUsers(); // Refresh the user list
-      handleCloseModal(); // Close the modal after saving
+      fetchUsers()
+      handleCloseModal()
     } catch (error) {
-      setErrorMessage('User not found, please check the username.');
-      console.error('Failed to save user:', error);
+      setErrorMessage("User not found, please check the username.")
+      console.error("Failed to save user:", error)
     }
-  };
+  }
 
-  const handleRoleAssignment = (userId: string) => {
-    setSelectedUserId(userId);
-    fetchRoles(); // Fetch roles when opening the modal
-    setOpenRoleModal(true);
-  };
+  const handleRoleAssignment = (selectedUser: User) => {
+    setSelectedUser(selectedUser)
+    fetchRoles()
+    setOpenRoleModal(true)
+  }
 
   const handleCloseRoleModal = () => {
-    setOpenRoleModal(false);
-    setSelectedUserId(null);
-  };
+    setOpenRoleModal(false)
+    setSelectedUser(null)
+  }
 
   const handleAssignRole = async (roleId: string) => {
     try {
-      await axiosInstance.current?.post(`/role-bindings`, { role_id: roleId, user_id: selectedUserId });
-      fetchUsers(); // Refresh the user list after assigning the role
-      handleCloseRoleModal(); // Close the role assignment modal
+      await axiosInstance.current?.post(`/role-bindings`, { role_id: roleId, user_id: selectedUser?.user_id })
+      fetchUsers()
+      handleCloseRoleModal()
     } catch (error) {
-      console.error('Failed to assign role:', error);
+      console.error("Failed to assign role:", error)
     }
-  };
+  }
 
-  const handleDeleteUser = async (workspace_user_id: string) => {
-    try {
-      await axiosInstance.current?.delete(`/workspace-users/${workspace_user_id}`);
-      fetchUsers(); // Refresh the user list after deletion
-    } catch (error) {
-      console.error('Failed to delete user:', error);
+  const handleDeleteUser = (userId: string) => {
+    setUserIdToDelete(userId)
+    setOpenConfirmationDialog(true)
+  }
+
+  const confirmDeleteUser = async () => {
+    if (userIdToDelete) {
+      try {
+        await axiosInstance.current?.delete(`/workspace-users/${userIdToDelete}`)
+        fetchUsers()
+      } catch (error) {
+        console.error("Failed to delete user:", error)
+      } finally {
+        setOpenConfirmationDialog(false)
+        setUserIdToDelete(null)
+      }
     }
-  };
+  }
 
-  // New search handler
+  const handleCloseConfirmationDialog = () => {
+    setOpenConfirmationDialog(false)
+    setUserIdToDelete(null)
+  }
+
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
-  };
+    setSearchTerm(event.target.value)
+  }
 
-  // Filter users based on the search term
-  const filteredUsers = users.filter(user =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter((user) => user.username.toLowerCase().includes(searchTerm.toLowerCase()))
 
   useEffect(() => {
-    fetchUsers(); // Fetch users when the component mounts
-    console.log(users);
-  }, [workspaceId]); // Re-fetch if workspaceId changes
+    fetchUsers()
+    fetchWorkspace()
+  }, [fetchUsers, fetchWorkspace])
 
   return (
-    <div>
-      <h2>Пользователи рабочего пространства</h2>
-      {/* Link to Roles Page */}
-      <Button component={Link} to={`/workspaces/${workspaceId}/secrets`} variant="outlined">
-        Управление секретами
-      </Button>
-      {/* Link to Roles Page */}
-      <Button component={Link} to={`/workspaces/${workspaceId}/roles`} variant="outlined">
-        Управление ролями
-      </Button>
-      {/* Link to Users Page */}
-      <Button component={Link} to={`/workspaces/${workspaceId}/users`} variant="outlined">
-        Управление пользователями
-      </Button>
-      <Button variant="contained" onClick={() => handleOpenModal()}>Добавить пользователя</Button>
-
-      {/* Search Bar */}
-      <TextField
-        margin="dense"
-        label="Поиск пользователя"
-        type="text"
-        fullWidth
-        variant="outlined"
-        value={searchTerm}
-        onChange={handleSearchChange}
-      />
-
-      {/* Users List */}
-      <div className="users-list">
-        {filteredUsers.map(user => (
-          <div key={user.id} className="user-item">
-            <h4>{user.username}</h4>
-            <p>Роли: {user.roles?.join(', ') || 'Нет ролей'}</p> {/* Display user roles */}
-            <Button variant="outlined" onClick={() => handleRoleAssignment(user.user_id)}>Назначить роль</Button>
-            <Button variant="outlined" onClick={() => handleDeleteUser(user.id)}>Удалить</Button>
-          </div>
-        ))}
-      </div>
-
-      {/* User Modal */}
-      <Dialog open={openModal} onClose={handleCloseModal}>
-        <DialogTitle>{selectedUserId ? 'Редактировать пользователя' : 'Добавить пользователя'}</DialogTitle>
-        <DialogContent>
-          <form onSubmit={handleSaveUser}>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Имя пользователя"
-              type="text"
-              fullWidth
-              variant="outlined"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-            />
-          </form>
-          <p>{errorMessage}</p>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseModal}>Отмена</Button>
-          <Button onClick={handleSaveUser} variant="contained" type="submit">
-            {selectedUserId ? 'Сохранить' : 'Добавить'}
+    <Box sx={{ py: 4, px: 2, backgroundColor: "#e4eff6", minHeight: "100vh", borderRadius: "5px" }}>
+      <Container maxWidth="lg">
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <IconButton
+              onClick={() => navigate("/workspaces")}
+              sx={{ mr: 2 }}
+              aria-label="Назад к рабочим пространствам"
+            >
+              <ArrowBack />
+            </IconButton>
+            <Typography variant="h4" component="h1" sx={{ color: "#1e293b", fontWeight: "bold" }}>
+              {workspaceName || ""}
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenModal()}
+            sx={{
+              backgroundColor: "#0369a1",
+              "&:hover": {
+                backgroundColor: "#0284c7",
+              },
+            }}
+          >
+            Добавить пользователя
           </Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
 
-      {/* Role Assignment Modal */}
-      <Dialog open={openRoleModal} onClose={handleCloseRoleModal}>
-        <DialogTitle>Назначить роль</DialogTitle>
-        <DialogContent>
-          <h4>Выберите роль для пользователя:</h4>
-          <List>
-            {roles.map(role => (
-              <ListItem key={role.id}>
-                <ListItemText primary={role.role.name} />
-                <Button variant="outlined" onClick={() => handleAssignRole(role.id)}>Назначить</Button>
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseRoleModal}>Закрыть</Button>
-        </DialogActions>
-      </Dialog>
-    </div>
-  );
-};
+        <Box sx={{ mb: 4, display: "flex", gap: 2 }}>
+          <Button variant="outlined" component={Link} to={`/workspaces/${workspaceId}/secrets`}>
+            Секреты
+          </Button>
+          <Button
+            variant="contained"
+            component={Link}
+            to={`/workspaces/${workspaceId}/users`}
+            sx={{
+              backgroundColor: "#0369a1",
+              "&:hover": {
+                backgroundColor: "#0284c7",
+              },
+            }}
+          >
+            Пользователи
+          </Button>
+          <Button variant="outlined" component={Link} to={`/workspaces/${workspaceId}/roles`}>
+            Роли
+          </Button>
+        </Box>
 
-export default UsersPage; 
+        <TextField
+          margin="dense"
+          label="Поиск пользователя"
+          type="text"
+          fullWidth
+          variant="outlined"
+          value={searchTerm}
+          onChange={handleSearchChange}
+          sx={{ mb: 2 }}
+        />
+
+        <List>
+          {filteredUsers.map((user) => (
+            <ListItem
+              key={user.id}
+              sx={{
+                backgroundColor: "white",
+                mb: 1,
+                borderRadius: "4px",
+                "&:hover": {
+                  backgroundColor: "#f0f9ff",
+                },
+              }}
+            >
+              <ListItemText
+                primary={
+                  <Typography color="primary" sx={{ fontWeight: "bold" }}>
+                    {user.username}
+                  </Typography>
+                }
+                secondary={`Роли: ${user.roles?.join(", ") || "Нет ролей"}`}
+              />
+              <Box>
+                <Button color="primary" size="small" onClick={() => handleRoleAssignment(user)} sx={{ mr: 1 }}>
+                  Назначить роль
+                </Button>
+                <Button color="secondary" size="small" onClick={() => handleRoleListing(user)} sx={{ mr: 1 }}>
+                  Удалить роль
+                </Button>                
+                <Button color="error" size="small" onClick={() => handleDeleteUser(user.id)}>
+                  Исключить
+                </Button>
+              </Box>
+            </ListItem>
+          ))}
+        </List>
+
+        <Dialog open={openModal} onClose={handleCloseModal}>
+          <DialogTitle>{selectedUser ? "Редактировать пользователя" : "Добавить пользователя"}</DialogTitle>
+          <DialogContent>
+            <form onSubmit={handleSaveUser}>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="Имя пользователя"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+              />
+            </form>
+            {errorMessage && (
+              <Typography color="error" sx={{ mt: 2 }}>
+                {errorMessage}
+              </Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseModal}>Отмена</Button>
+            <Button onClick={handleSaveUser} variant="contained" type="submit">
+              {selectedUser ? "Сохранить" : "Добавить"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={openRoleModal} onClose={handleCloseRoleModal}>
+          <DialogTitle>Назначить роль</DialogTitle>
+          <DialogContent>
+            <List>
+              {roles
+              .filter(role => {
+                console.log(selectedUser);
+                return !selectedUser?.roles?.includes(role.name)})
+              .map((role) => (
+                <ListItem key={role.id}>
+                  <ListItemText primary={role.name} />
+                  <Button variant="outlined" onClick={() => handleAssignRole(role.id)} sx={{ml: 5}}>
+                    Назначить
+                  </Button>
+                </ListItem>
+              ))}
+            </List>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseRoleModal}>Закрыть</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={openRolesModal} onClose={handleCloseRolesModal}>
+          <DialogTitle>Роли пользователя</DialogTitle>
+          <DialogContent>
+            <List>
+              {rolesList.length > 0 ? (
+                rolesList.map((role) => (
+                  <ListItem key={role.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <ListItemText primary={role.name} />
+                    <IconButton onClick={() => handleDeleteRole(role)} size="small" color="error">
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItem>
+                ))
+              ) : (
+                <Typography variant="body2">Нет назначенных ролей.</Typography>
+              )}
+            </List>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseRolesModal}>Закрыть</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={openConfirmationDialog} onClose={handleCloseConfirmationDialog}>
+          <DialogTitle>Подтверждение удаления</DialogTitle>
+          <DialogContent>
+            <Typography>Вы уверены, что хотите удалить этого пользователя?</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseConfirmationDialog}>Отмена</Button>
+            <Button onClick={confirmDeleteUser} variant="contained" color="error">
+              Удалить
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+    </Box>
+  )
+}
+
+export default UsersPage
+

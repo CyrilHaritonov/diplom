@@ -7,7 +7,7 @@ import { BrowserRouter, Route, Link as RouterLink, Routes } from "react-router-d
 import { ReactKeycloakProvider, useKeycloak } from "@react-keycloak/web"
 import type { KeycloakInstance } from "keycloak-js"
 import { AppBar, Toolbar, Typography, Button, Box, Container, Link, Menu, MenuItem, IconButton } from "@mui/material"
-import { Menu as MenuIcon, Home, WorkOutline, EventNote, Telegram, ExitToApp, Login } from "@mui/icons-material"
+import { Menu as MenuIcon, Home, WorkOutline, EventNote, Telegram, ExitToApp, Login, Work, WorkHistory, WorkOutlineOutlined, WorkOutlineRounded, WorkOutlineSharp } from "@mui/icons-material"
 import HomePage from "./pages/HomePage"
 import WorkspacesPage from "./pages/WorkspacesPage"
 import SecretsPage from "./pages/SecretsPage"
@@ -17,6 +17,7 @@ import TelegramPage from "./pages/TelegramPage"
 import UsersPage from "./pages/UsersPage"
 import { PrivateRoute } from "./utils/PrivateRoute"
 import { useAxios } from "./utils/hooks"
+import AnimatedBackground from "./utils/AnimatedBackground"
 
 const AppRouter: FC = () => {
   const { keycloak } = useKeycloak()
@@ -53,13 +54,14 @@ const AppRouter: FC = () => {
 
   const navItems = [
     { title: "Главная", path: "/", icon: <Home /> },
-    { title: "Рабочие пространства", path: "/workspaces", icon: <WorkOutline /> },
+    { title: "Пространства", path: "/workspaces", icon: <Work /> },
     { title: "События", path: "/events", icon: <EventNote /> },
     { title: "Telegram", path: "/telegram", icon: <Telegram /> },
   ]
 
   return (
     <BrowserRouter>
+    <AnimatedBackground/>
       <AppBar position="fixed" sx={{ backgroundColor: "rgba(255, 255, 255, 0.8)", backdropFilter: "blur(8px)" }}>
         <Container maxWidth="lg">
           <Toolbar disableGutters>
@@ -204,8 +206,8 @@ const AppRouter: FC = () => {
           <Route path="/workspaces/:workspaceId/secrets" element={<PrivateRoute element={<SecretsPage />} />} />
           <Route path="/workspaces/:workspaceId/roles" element={<PrivateRoute element={<RolesPage />} />} />
           <Route path="/workspaces/:workspaceId/users" element={<PrivateRoute element={<UsersPage />} />} />
-          <Route path="/events" element={<EventsPage />} />
-          <Route path="/telegram" element={<TelegramPage />} />
+          <Route path="/events" element={<PrivateRoute element={<EventsPage />} />} />
+          <Route path="/telegram" element={<PrivateRoute element={<TelegramPage />}/>} />
         </Routes>
       </Container>
     </BrowserRouter>

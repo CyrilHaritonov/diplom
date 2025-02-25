@@ -1,51 +1,79 @@
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, List, ListItem, ListItemText } from '@mui/material';
-import { FC, useState, useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { useAxios } from '../utils/hooks';
+"use client"
+
+import type React from "react"
+
+import { type FC, useState, useEffect, useCallback } from "react"
+import { Link, useParams, useNavigate } from "react-router-dom"
+import {
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Typography,
+  Box,
+  Container,
+  Checkbox,
+  FormControlLabel,
+  Card,
+  CardContent,
+  CardActions,
+} from "@mui/material"
+import {
+  ArrowBack,
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Person as PersonIcon,
+} from "@mui/icons-material"
+import { useAxios } from "../utils/hooks"
 
 interface Role {
-  id: string;
-  name: string;
-  for_workspace: string;
+  id: string
+  name: string
+  for_workspace: string
   permissions: {
-    create: boolean;
-    read: boolean;
-    update: boolean;
-    deletable: boolean;
-    see_logs: boolean;
-    give_roles: boolean;
-    add_users: boolean;
-    admin_rights: boolean;
-  };
+    create: boolean
+    read: boolean
+    update: boolean
+    deletable: boolean
+    see_logs: boolean
+    give_roles: boolean
+    add_users: boolean
+    admin_rights: boolean
+  }
 }
 
-interface RoleWithPermissions {
-  id: string;
-  name: string;
-  for_workspace: string;
-  create: boolean;
-  read: boolean;
-  update: boolean;
-  deletable: boolean;
-  see_logs: boolean;
-  give_roles: boolean;
-  add_users: boolean;
-  admin_rights: boolean;
+interface RoleWithPermissions extends Role {
+  create: boolean
+  read: boolean
+  update: boolean
+  deletable: boolean
+  see_logs: boolean
+  give_roles: boolean
+  add_users: boolean
+  admin_rights: boolean
 }
 
 interface RoleBinding {
-  id: string;
-  username: string;
-  user_id: string;
+  id: string
+  username: string
+  user_id: string
 }
 
 const RolesPage: FC = () => {
-  const { workspaceId } = useParams()
-  const [openModal, setOpenModal] = useState(false);
-  const [openUserModal, setOpenUserModal] = useState(false);
-  const [openRoleUsersModal, setOpenRoleUsersModal] = useState(false);
-  const [roleUsers, setRoleUsers] = useState<RoleBinding[]>([]);
-  const [roleName, setRoleName] = useState('');
+  const { workspaceId } = useParams<{ workspaceId: string }>()
+  const navigate = useNavigate()
+  const [openModal, setOpenModal] = useState(false)
+  const [openUserModal, setOpenUserModal] = useState(false)
+  const [openRoleUsersModal, setOpenRoleUsersModal] = useState(false)
+  const [roleUsers, setRoleUsers] = useState<RoleBinding[]>([])
+  const [roleName, setRoleName] = useState("")
   const [permissions, setPermissions] = useState({
     create: false,
     read: false,
@@ -55,21 +83,25 @@ const RolesPage: FC = () => {
     give_roles: false,
     add_users: false,
     admin_rights: false,
-  });
-  const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
-  const [users, setUsers] = useState<RoleBinding[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
-  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
-  const axiosInstance = useAxios(import.meta.env.VITE_API_URL);
+  })
+  const [roles, setRoles] = useState<RoleWithPermissions[]>([])
+  const [users, setUsers] = useState<RoleBinding[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null)
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null)
+  const [workspaceName, setWorkspaceName] = useState<string | null>("")
+  const axiosInstance = useAxios(import.meta.env.VITE_API_URL)
+  const [roleBindings, setRoleBindings] = useState<RoleBinding[] | null> (null)
+  const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false)
+  const [roleIdToDelete, setRoleIdToDelete] = useState<string | null>(null)
 
   const handleOpenModal = () => {
-    setOpenModal(true);
-  };
+    setOpenModal(true)
+  }
 
   const handleCloseModal = () => {
-    setOpenModal(false);
-    setRoleName('');
+    setOpenModal(false)
+    setRoleName("")
     setPermissions({
       create: false,
       read: false,
@@ -79,40 +111,50 @@ const RolesPage: FC = () => {
       give_roles: false,
       add_users: false,
       admin_rights: false,
-    });
-    setEditingRoleId(null);
-  };
+    })
+    setEditingRoleId(null)
+  }
 
   const handleCreateRole = async (event: React.FormEvent) => {
-    event.preventDefault();
+    event.preventDefault()
     try {
       const response = await axiosInstance.current?.post(`/roles`, {
         name: roleName,
         for_workspace: workspaceId,
-        ...permissions
-      });
-      const newRole = response?.data;
-      setRoles((prev) => [...prev, newRole]); // Add the new role to the list
-      handleCloseModal(); // Close the modal after creating the role
+        ...permissions,
+      })
+      const newRole = response?.data
+      setRoles((prev) => [...prev, newRole])
+      handleCloseModal()
     } catch (error) {
-      console.error('Failed to create role:', error);
+      console.error("Failed to create role:", error)
     }
-  };
+  }
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     try {
-      const response = await axiosInstance.current?.get(`/roles?workspace_id=${workspaceId}`);
-      const data = response?.data;
-      setRoles(data); // Set the fetched roles
+      const response = await axiosInstance.current?.get(`/roles?workspace_id=${workspaceId}`)
+      const data = response?.data
+      setRoles(data)
     } catch (error) {
-      console.error('Failed to fetch roles:', error);
+      console.error("Failed to fetch roles:", error)
     }
-  };
+  }, [axiosInstance, workspaceId])
+
+  const fetchWorkspace = useCallback(async () => {
+    try {
+      const response = await axiosInstance.current?.get(`/workspaces/${workspaceId}`)
+      const data = response?.data
+      setWorkspaceName(data.name)
+    } catch (error) {
+      console.error("Failed to fetch workspace:", error)
+    }
+  }, [axiosInstance, workspaceId])
 
   const handleEditRole = async (roleId: string) => {
-    const roleToEdit = roles.find(role => role.id === roleId);
+    const roleToEdit = roles.find((role) => role.id === roleId)
     if (roleToEdit) {
-      setRoleName(roleToEdit.name);
+      setRoleName(roleToEdit.name)
       setPermissions({
         create: roleToEdit.create,
         read: roleToEdit.read,
@@ -122,249 +164,368 @@ const RolesPage: FC = () => {
         give_roles: roleToEdit.give_roles,
         add_users: roleToEdit.add_users,
         admin_rights: roleToEdit.admin_rights,
-    });
-      setEditingRoleId(roleId);
-      handleOpenModal();
+      })
+      setEditingRoleId(roleId)
+      handleOpenModal()
     }
-  };
+  }
 
   const handleUpdateRole = async (roleId: string) => {
     try {
       await axiosInstance.current?.put(`/roles/${roleId}`, {
         name: roleName,
         ...permissions,
-      });
-      setRoles((prev) => prev.map(role => 
-        role.id === roleId ? { ...role, name: roleName, ...permissions } : role
-      ));
-      handleCloseModal(); // Close the modal after updating the role
+      })
+      setRoles((prev) => prev.map((role) => (role.id === roleId ? { ...role, name: roleName, ...permissions } : role)))
+      handleCloseModal()
     } catch (error) {
-      console.error('Failed to update role:', error);
+      console.error("Failed to update role:", error)
     }
-  };
+  }
 
-  const handleDeleteRole = async (roleId: string) => {
-    try {
-      await axiosInstance.current?.delete(`/roles/${roleId}`);
-      setRoles((prev) => prev.filter(role => role.id !== roleId)); // Remove the deleted role from the list
-    } catch (error) {
-      console.error('Failed to delete role:', error);
+  const handleDeleteRole = (roleId: string) => {
+    setRoleIdToDelete(roleId)
+    setOpenConfirmationDialog(true)
+  }
+
+  const confirmDeleteRole = async () => {
+    if (roleIdToDelete) {
+      try {
+        await axiosInstance.current?.delete(`/roles/${roleIdToDelete}`)
+        fetchRoles()
+      } catch (error) {
+        console.error("Failed to delete role:", error)
+      } finally {
+        setOpenConfirmationDialog(false)
+        setRoleIdToDelete(null)
+      }
     }
-  };
+  }
+
+  const handleCloseConfirmationDialog = () => {
+    setOpenConfirmationDialog(false)
+    setRoleIdToDelete(null)
+  }
 
   const handleCloseUserModal = () => {
-    setOpenUserModal(false);
-    setSearchTerm('');
-  };
+    setOpenUserModal(false)
+    setSearchTerm("")
+  }
 
   const handleOpenRoleUsersModal = (roleId: string) => {
-    setSelectedRoleId(roleId);
-    fetchUsersByRole(roleId);
-    setOpenRoleUsersModal(true);
-  };
+    setSelectedRoleId(roleId)
+    fetchUsersByRole(roleId)
+    setOpenRoleUsersModal(true)
+  }
 
   const handleCloseRoleUsersModal = () => {
-    setOpenRoleUsersModal(false);
-  };
+    setOpenRoleUsersModal(false)
+  }
 
   const fetchUsersByRole = async (roleId: string) => {
     try {
-      const response = await axiosInstance.current?.get(`/role-bindings/role/${roleId}/workspace/${workspaceId}`);
-      const data = response?.data;
+      const response = await axiosInstance.current?.get(`/role-bindings/role/${roleId}/workspace/${workspaceId}`)
+      const data = response?.data
       const data_with_usernames = data.map((roleBinding: any) => {
-        const user = users.find((u: RoleBinding) => u.id === roleBinding.user_id);
+        const user = users.find((u: RoleBinding) => u.id === roleBinding.user_id)
         return {
           id: roleBinding.id,
           user_id: roleBinding.user_id,
-          username: user ? user.username : '',
-        };
-      });
+          username: user ? user.username : "",
+        }
+      })
 
-      setRoleUsers(data_with_usernames);
+      setRoleUsers(data_with_usernames)
     } catch (error) {
-      console.error('Failed to fetch users for the role:', error);
+      console.error("Failed to fetch users for the role:", error)
     }
-  };
+  }
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
-      const response = await axiosInstance.current?.get(`/auth/users`);
-      const data = response?.data;
-      setUsers(data); // Set the fetched users
+      const response = await axiosInstance.current?.get(`/auth/users`)
+      const workspaceUsersResponse = await axiosInstance.current?.get(`/workspace-users?workspace_id=${workspaceId}`)
+      const workspaceUserIds = workspaceUsersResponse?.data.map((user: any) => user.user_id) || []
+      const data = response?.data
+      const filteredData = data.filter((user: any) => workspaceUserIds.includes(user.id))
+      setUsers(filteredData)
     } catch (error) {
-      console.error('Failed to fetch users:', error);
+      console.error("Failed to fetch users:", error)
     }
-  };
+  }, [axiosInstance])
 
+  const fetchRoleBindingsByRole = async (roleId: string) => {
+    try {
+      const response = await axiosInstance.current?.get(`/role-bindings/role/${roleId}/workspace/${workspaceId}`);
+      const roleBindings = response?.data;
+      setRoleBindings(roleBindings);
+    } catch (error) {
+      console.error("Failed to fetch role bindings for the role:", error);
+    }
+  }
+
+  
   const handleAssignRoleToUser = async (roleId: string) => {
-    setOpenUserModal(true); // Open the modal for assigning the role
-    setSelectedRoleId(roleId); // Set the selected role ID to be assigned
-  };
+    fetchRoleBindingsByRole(roleId)
+    setOpenUserModal(true)
+    setSelectedRoleId(roleId)
+  }
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
-  };
+    setSearchTerm(event.target.value)
+  }
 
-  const filteredUsers = users.filter(user => 
-    user.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter((user) => user.username.toLowerCase().includes(searchTerm.toLowerCase()))
 
   const handleUserAssign = async (userId: string) => {
     try {
-      await axiosInstance.current?.post(`/role-bindings`, { role_id: selectedRoleId, user_id: userId });
-      handleCloseUserModal(); // Close the user assignment modal
+      await axiosInstance.current?.post(`/role-bindings`, { role_id: selectedRoleId, user_id: userId })
+      handleCloseUserModal()
       // Optionally refresh roles or users here
     } catch (error) {
-      console.error('Failed to assign role to user:', error);
+      console.error("Failed to assign role to user:", error)
     }
-  };
+  }
 
   const handleUserRemove = async (roleBindingId: string) => {
     try {
-      await axiosInstance.current?.delete(`/role-bindings/${roleBindingId}`);
+      await axiosInstance.current?.delete(`/role-bindings/${roleBindingId}`)
       // Refresh the role users after removal
-      fetchUsersByRole(selectedRoleId!);
+      fetchUsersByRole(selectedRoleId!)
     } catch (error) {
-      console.error('Failed to remove user from role:', error);
+      console.error("Failed to remove user from role:", error)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchRoles(); // Fetch roles when the component mounts
-    fetchUsers();
-  }, [workspaceId]); // Re-fetch if workspaceId changes
+    fetchRoles()
+    fetchUsers()
+    fetchWorkspace()
+  }, [fetchRoles, fetchWorkspace, fetchUsers])
 
   return (
-    <div>
-      <h2>Роли пространства</h2>
-      {/* Link to Roles Page */}
-      <Button component={Link} to={`/workspaces/${workspaceId}/secrets`} variant="outlined">
-        Управление секретами
-      </Button>
-      {/* Link to Roles Page */}
-      <Button component={Link} to={`/workspaces/${workspaceId}/roles`} variant="outlined">
-        Управление ролями
-      </Button>
-      {/* Link to Users Page */}
-      <Button component={Link} to={`/workspaces/${workspaceId}/users`} variant="outlined">
-        Управление пользователями
-      </Button>
-      {/* Button to open the modal for creating a role */}
-      <Button variant="contained" onClick={handleOpenModal}>
-        Создать роль
-      </Button>
+    <Box sx={{ py: 4, px: 2, backgroundColor: "#e4eff6", minHeight: "100vh", borderRadius: "5px" }}>
+      <Container maxWidth="lg">
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <IconButton
+              onClick={() => navigate("/workspaces")}
+              sx={{ mr: 2 }}
+              aria-label="Назад к рабочим пространствам"
+            >
+              <ArrowBack />
+            </IconButton>
+            <Typography variant="h4" component="h1" sx={{ color: "#1e293b", fontWeight: "bold" }}>
+              {workspaceName || ""}
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenModal}
+            sx={{
+              backgroundColor: "#0369a1",
+              "&:hover": {
+                backgroundColor: "#0284c7",
+              },
+            }}
+          >
+            Создать роль
+          </Button>
+        </Box>
 
-      {/* Create Role Modal */}
-      <Dialog open={openModal} onClose={handleCloseModal}>
-        <DialogTitle>{editingRoleId ? 'Редактировать роль' : 'Создать роль'}</DialogTitle>
-        <DialogContent>
-          <form onSubmit={handleCreateRole}>
+        <Box sx={{ mb: 4, display: "flex", gap: 2 }}>
+          <Button variant="outlined" component={Link} to={`/workspaces/${workspaceId}/secrets`}>
+            Секреты
+          </Button>
+          <Button variant="outlined" component={Link} to={`/workspaces/${workspaceId}/users`}>
+            Пользователи
+          </Button>
+          <Button
+            variant="contained"
+            component={Link}
+            to={`/workspaces/${workspaceId}/roles`}
+            sx={{
+              backgroundColor: "#0369a1",
+              "&:hover": {
+                backgroundColor: "#0284c7",
+              },
+            }}
+          >
+            Роли
+          </Button>
+        </Box>
+
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 3 }}>
+          {roles.map((role) => (
+            <Card key={role.id} sx={{ display: "flex", flexDirection: "column" }}>
+              <CardContent>
+                <Typography variant="h6" component="h2" gutterBottom>
+                  {role.name}
+                </Typography>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Права:
+                  </Typography>
+                  <ul style={{ paddingLeft: "20px", margin: 0 }}>
+                    {[
+                      ["Создавать секреты", role.create],
+                      ["Читать секреты", role.read],
+                      ["Обновлять секреты", role.update],
+                      ["Удалять секреты", role.deletable],
+                      ["Смотреть логи", role.see_logs],
+                      ["Назначать роли", role.give_roles],
+                      ["Управлять пользователями", role.add_users],
+                      ["Управление пространством", role.admin_rights],
+                    ]
+                      .filter(([_, value]) => value)
+                      .map(([permission, _]) => (
+                        <li key={permission as string}>
+                          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                            {permission}
+                          </Typography>
+                        </li>
+                      ))}
+                  </ul>
+                </Box>
+              </CardContent>
+              <CardActions sx={{ mt: "auto", justifyContent: "space-between" }}>
+                <Button
+                  color="primary"
+                  size="small"
+                  onClick={() => handleAssignRoleToUser(role.id)}
+                  sx={{ mr: 1 }}
+                >
+                  Назначить пользователю
+                </Button>
+                <Box>
+                  <IconButton onClick={() => handleOpenRoleUsersModal(role.id)} size="small" title="Пользователи" color="primary">
+                    <PersonIcon />
+                  </IconButton>
+                  <IconButton onClick={() => handleEditRole(role.id)} size="small" title="Редактировать" color="primary">
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton onClick={() => handleDeleteRole(role.id)} size="small" title="Удалить" sx={{ color: "#e96d6d" }}>
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+              </CardActions>
+            </Card>
+          ))}
+        </Box>
+
+        <Dialog open={openModal} onClose={handleCloseModal}>
+          <DialogTitle>{editingRoleId ? "Редактировать роль" : "Создать роль"}</DialogTitle>
+          <DialogContent>
+            <form onSubmit={handleCreateRole}>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="Название роли"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={roleName}
+                onChange={(e) => setRoleName(e.target.value)}
+              />
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Права:
+                </Typography>
+                {Object.entries(permissions).map(([key, value]) => (
+                  <FormControlLabel
+                    key={key}
+                    control={
+                      <Checkbox
+                        checked={value}
+                        onChange={() => setPermissions((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}
+                      />
+                    }
+                    label={key.charAt(0).toUpperCase() + key.slice(1).replace("_", " ")}
+                  />
+                ))}
+              </Box>
+            </form>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseModal}>Отмена</Button>
+            <Button
+              onClick={editingRoleId ? () => handleUpdateRole(editingRoleId) : handleCreateRole}
+              variant="contained"
+              type="submit"
+            >
+              {editingRoleId ? "Сохранить" : "Создать роль"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={openUserModal} onClose={handleCloseUserModal}>
+          <DialogTitle>Назначить роль</DialogTitle>
+          <DialogContent>
             <TextField
               autoFocus
               margin="dense"
-              label="Название роли"
+              label="Поиск пользователя"
               type="text"
               fullWidth
               variant="outlined"
-              value={roleName}
-              onChange={(e) => setRoleName(e.target.value)}
+              value={searchTerm}
+              onChange={handleSearchChange}
             />
-            {/* Permissions Checkboxes */}
-            <div className="permissions">
-              {Object.keys(permissions).map((key) => (
-                <label key={key}>
-                  <input
-                    type="checkbox"
-                    checked={permissions[key as keyof typeof permissions]}
-                    onChange={() => setPermissions((prev) => ({ ...prev, [key]: !prev[key as keyof typeof permissions] }))}
-                  />
-                  {key.charAt(0).toUpperCase() + key.slice(1)}
-                </label>
+            <List>
+              {filteredUsers
+              .filter(user => {
+                return !roleBindings?.map(roleBinding => roleBinding.user_id)?.includes(user.id)})
+              .map((user) => (
+                <ListItem key={user.id}>
+                  <ListItemText primary={user.username} />
+                  <Button variant="outlined" onClick={() => handleUserAssign(user.id)}>
+                    Назначить
+                  </Button>
+                </ListItem>
               ))}
-            </div>
-          </form>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseModal}>Отмена</Button>
-          <Button onClick={editingRoleId ? () => handleUpdateRole(editingRoleId) : handleCreateRole} variant="contained" type="submit">
-            {editingRoleId ? 'Сохранить' : 'Создать роль'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+            </List>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseUserModal}>Закрыть</Button>
+          </DialogActions>
+        </Dialog>
 
-      {/* User Assignment Modal */}
-      <Dialog open={openUserModal} onClose={handleCloseUserModal}>
-        <DialogTitle>Назначить роль</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Поиск пользователя"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={searchTerm}
-            onChange={handleSearchChange}
-          />
-          <List>
-            {filteredUsers.map(user => (
-              <ListItem key={user.id}>
-                <ListItemText primary={user.username} />
-                <Button variant="outlined" onClick={() => handleUserAssign(user.id)}>Назначить</Button>
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseUserModal}>Закрыть</Button>
-        </DialogActions>
-      </Dialog>
+        <Dialog open={openRoleUsersModal} onClose={handleCloseRoleUsersModal}>
+          <DialogTitle>Пользователи роли</DialogTitle>
+          <DialogContent>
+            <List>
+              {roleUsers.length ? roleUsers.map((roleBinding) => (
+                <ListItem key={roleBinding.user_id}>
+                  <ListItemText primary={roleBinding.username} />
+                  <Button variant="outlined" onClick={() => handleUserRemove(roleBinding.id)}>
+                    Удалить
+                  </Button>
+                </ListItem>
+              )) : "Нет пользователей"}
+            </List>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseRoleUsersModal}>Закрыть</Button>
+          </DialogActions>
+        </Dialog>
 
-      <div className="roles-list">
-        {roles.map((role) => (
-          <div key={role.id} className="role-item">
-            <h4>{role.name}</h4>
-            <div className="permissions">
-              <h5>Права:</h5>
-              <ul>
-                {role && [["Создавать секреты", role.create],
-                 ["Читать секреты", role.read],
-                 ["Обновлять секреты", role.update],
-                 ["Удалять секреты", role.deletable],
-                 ["Смотреть логи", role.see_logs],
-                 ["Назначать роли", role.give_roles],
-                 ["Управлять пользователями", role.add_users],
-                 ["Управление пространством", role.admin_rights]].map(([permission, value]) => (
-                  <li key={permission as string}>{permission}: {value ? 'Да' : 'Нет'}</li>
-                ))}
-              </ul>
-            </div>
-            <Button variant="outlined" onClick={() => handleEditRole(role.id)}>Редактировать</Button>
-            <Button variant="outlined" onClick={() => handleDeleteRole(role.id)}>Удалить</Button>
-            <Button variant="outlined" onClick={() => handleAssignRoleToUser(role.id)}>Назначить</Button>
-            <Button variant="outlined" onClick={() => handleOpenRoleUsersModal(role.id)}>Пользователи</Button>
-          </div>
-        ))}
-      </div>
-
-      <Dialog open={openRoleUsersModal} onClose={handleCloseRoleUsersModal}>
-        <DialogTitle>Пользователи роли</DialogTitle>
-        <DialogContent>
-          <List>
-            {roleUsers.map(roleBinding => (
-              <ListItem key={roleBinding.user_id}>
-                <ListItemText primary={roleBinding.username} />
-                <Button variant="outlined" onClick={() => handleUserRemove(roleBinding.id)}>Удалить</Button>
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseRoleUsersModal}>Закрыть</Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+        <Dialog open={openConfirmationDialog} onClose={handleCloseConfirmationDialog}>
+          <DialogTitle>Подтверждение удаления</DialogTitle>
+          <DialogContent>
+            <Typography>Вы уверены, что хотите удалить эту роль?</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseConfirmationDialog}>Отмена</Button>
+            <Button onClick={confirmDeleteRole} variant="contained" color="error">
+              Удалить
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+    </Box>
   )
 }
 
-export default RolesPage 
+export default RolesPage
+

@@ -24,7 +24,7 @@ export class WorkspaceService {
 
         // Create default roles
         const fullControlRole = await RoleService.create({
-            name: 'full_control',
+            name: 'Полный доступ',
             for_workspace: savedWorkspace.id,
             create: true,
             read: true,
@@ -37,7 +37,7 @@ export class WorkspaceService {
         });
 
         await RoleService.create({
-            name: 'read_only',
+            name: 'Только чтение',
             for_workspace: savedWorkspace.id,
             create: false,
             read: true,
