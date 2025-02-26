@@ -3,12 +3,9 @@
 import type React from "react"
 
 import { type FC, useEffect, useState, useCallback } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import {
   Button,
-  List,
-  ListItem,
-  ListItemText,
   Pagination,
   Checkbox,
   FormControlLabel,

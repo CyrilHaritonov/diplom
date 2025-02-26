@@ -18,6 +18,7 @@ import {
   Typography,
   Box,
   Container,
+  Snackbar,
 } from "@mui/material"
 import { ArrowBack, Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material"
 import { useAxios } from "../utils/hooks"
@@ -49,11 +50,10 @@ const UsersPage: FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [userName, setUserName] = useState("")
   const [openRoleModal, setOpenRoleModal] = useState(false)
-  const [errorMessage, setErrorMessage] = useState("")
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [workspaceName, setWorkspaceName] = useState<string | null>("")
   const axiosInstance = useAxios(import.meta.env.VITE_API_URL)
-  const [assignedRoles, setAssignedRoles] = useState<string[]>([])
   const [openRolesModal, setOpenRolesModal] = useState(false)
   const [rolesList, setRolesList] = useState<RoleBinding[]>([])
   const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false)
@@ -116,7 +116,7 @@ const UsersPage: FC = () => {
     setOpenModal(false)
     setUserName("")
     setSelectedUser(null)
-    setErrorMessage("")
+    setErrorMessage(null)
   }
 
   const handleRoleListing = async (user: User) => {
@@ -141,10 +141,14 @@ const UsersPage: FC = () => {
       await axiosInstance.current?.delete(`/role-bindings/${roleBinding.id}`);
       setRolesList((prev) => prev.filter((item) => item.id !== roleBinding.id));
       fetchUsers();
-    } catch (error) {
-      console.error("Failed to delete role:", error);
+    } catch (error: any) {
+      if (error.response && error.response.status === 403) {
+        setErrorMessage("У вас нет прав для удаления роли.");
+      } else {
+        console.error("Failed to delete role:", error);
+      }
     }
-  };
+  }
 
   const handleCloseRolesModal = () => {
     setOpenRolesModal(false);
@@ -163,9 +167,17 @@ const UsersPage: FC = () => {
       }
       fetchUsers()
       handleCloseModal()
-    } catch (error) {
-      setErrorMessage("User not found, please check the username.")
-      console.error("Failed to save user:", error)
+    } catch (error : any) {
+      if (error.response && error.response.status === 403) {
+        setErrorMessage("У вас нет прав на добавление пользователя.")
+      } else if (error.response.status === 404) {
+        setErrorMessage("Пользователь не найден.")
+      } else if (error.response.status === 500) {
+        setErrorMessage("Пользователь уже добавлен в пространство.")
+      }
+      else {
+        console.error("Failed to save user:", error)
+      }
     }
   }
 
@@ -185,8 +197,12 @@ const UsersPage: FC = () => {
       await axiosInstance.current?.post(`/role-bindings`, { role_id: roleId, user_id: selectedUser?.user_id })
       fetchUsers()
       handleCloseRoleModal()
-    } catch (error) {
-      console.error("Failed to assign role:", error)
+    } catch (error: any) {
+      if (error.response && error.response.status === 403) {
+        setErrorMessage("У вас нет прав для назначения роли.");
+      } else {
+        console.error("Failed to assign role:", error);
+      }
     }
   }
 
@@ -198,17 +214,20 @@ const UsersPage: FC = () => {
   const confirmDeleteUser = async () => {
     if (userIdToDelete) {
       try {
-        await axiosInstance.current?.delete(`/workspace-users/${userIdToDelete}`)
-        fetchUsers()
-      } catch (error) {
-        console.error("Failed to delete user:", error)
+        await axiosInstance.current?.delete(`/workspace-users/${userIdToDelete}`);
+        fetchUsers();
+      } catch (error: any) {
+        if (error.response && error.response.status === 403) {
+          setErrorMessage("У вас нет прав для удаления пользователя.");
+        } else {
+          console.error("Failed to delete user:", error);
+        }
       } finally {
-        setOpenConfirmationDialog(false)
-        setUserIdToDelete(null)
+        setOpenConfirmationDialog(false);
+        setUserIdToDelete(null);
       }
     }
   }
-
   const handleCloseConfirmationDialog = () => {
     setOpenConfirmationDialog(false)
     setUserIdToDelete(null)
@@ -219,6 +238,10 @@ const UsersPage: FC = () => {
   }
 
   const filteredUsers = users.filter((user) => user.username.toLowerCase().includes(searchTerm.toLowerCase()))
+
+  const handleCloseSnackbar = () => {
+    setErrorMessage(null)
+  }
 
   useEffect(() => {
     fetchUsers()
@@ -290,7 +313,7 @@ const UsersPage: FC = () => {
         />
 
         <List>
-          {filteredUsers.map((user) => (
+          {filteredUsers.length ? filteredUsers.map((user) => (
             <ListItem
               key={user.id}
               sx={{
@@ -315,14 +338,18 @@ const UsersPage: FC = () => {
                   Назначить роль
                 </Button>
                 <Button color="secondary" size="small" onClick={() => handleRoleListing(user)} sx={{ mr: 1 }}>
-                  Удалить роль
+                  Отозвать роль
                 </Button>                
                 <Button color="error" size="small" onClick={() => handleDeleteUser(user.id)}>
                   Исключить
                 </Button>
               </Box>
             </ListItem>
-          ))}
+          )) : <Box sx={{ mt: 30, gridColumn: "span 3", textAlign: "center" }}>
+            <Typography variant="subtitle1" sx={{ color: "text.primary" }} gutterBottom>
+              В пространстве нет пользователей, либо у вас нет прав на просмотр пользователей.
+              </Typography>
+              </Box>}
         </List>
 
         <Dialog open={openModal} onClose={handleCloseModal}>
@@ -340,11 +367,6 @@ const UsersPage: FC = () => {
                 onChange={(e) => setUserName(e.target.value)}
               />
             </form>
-            {errorMessage && (
-              <Typography color="error" sx={{ mt: 2 }}>
-                {errorMessage}
-              </Typography>
-            )}
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseModal}>Отмена</Button>
@@ -359,9 +381,7 @@ const UsersPage: FC = () => {
           <DialogContent>
             <List>
               {roles
-              .filter(role => {
-                console.log(selectedUser);
-                return !selectedUser?.roles?.includes(role.name)})
+              .filter(role => !selectedUser?.roles?.includes(role.name))
               .map((role) => (
                 <ListItem key={role.id}>
                   <ListItemText primary={role.name} />
@@ -412,6 +432,13 @@ const UsersPage: FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <Snackbar
+          open={Boolean(errorMessage)}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+          message={errorMessage}
+        />
       </Container>
     </Box>
   )

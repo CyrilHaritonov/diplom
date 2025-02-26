@@ -13,6 +13,7 @@ export function createAuthRouter(keycloak: any) {
         AuthController.getUserInfo
     );
 
+    // Route for getting id by username
     router.get('/user/:username',
         keycloak.protect(),
         logAction(LogAction.ACCESS, LogSubject.USER_INFO),

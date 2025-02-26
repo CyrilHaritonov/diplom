@@ -78,7 +78,7 @@ export class AuthController {
         }
     }
 
-    // New method to get username by user ID
+    // Method to get username by user ID
     static async getUsernameByUserId(req: Request, res: Response): Promise<void> {
             const { userId } = req.params; // Assuming username is passed as a URL parameter
             const keycloakTokenUrl = `${process.env.KEYCLOAK_AUTH_SERVER_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`;

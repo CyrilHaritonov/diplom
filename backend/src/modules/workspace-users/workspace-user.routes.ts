@@ -54,9 +54,9 @@ export function createWorkspaceUserRouter(keycloak: any) {
 
                 // Check if user has read permission in this workspace
                 const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, workspace_id as string);
-                const canRead = userRoles.some(rb => rb.role.read);
+                const canAddUsers = userRoles.some(rb => rb.role.add_users);
 
-                if (!canRead) {
+                if (!canAddUsers) {
                     res.status(403).json({ error: 'Access denied: Insufficient permissions to view workspace users' });
                     return;
                 }
@@ -68,7 +68,7 @@ export function createWorkspaceUserRouter(keycloak: any) {
                     const roles = await RoleBindingService.findByUserAndWorkspace(user.user_id, workspace_id as string);
                     return {
                         ...user,
-                        roles: roles.map(roleBinding => roleBinding.role.name) // Assuming role has a 'name' property
+                        roles: roles.map(roleBinding => roleBinding.role.name)
                     };
                 }));
 

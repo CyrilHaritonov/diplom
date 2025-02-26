@@ -23,6 +23,7 @@ import {
   Card,
   CardContent,
   CardActions,
+  Snackbar,
 } from "@mui/material"
 import {
   ArrowBack,
@@ -94,7 +95,18 @@ const RolesPage: FC = () => {
   const [roleBindings, setRoleBindings] = useState<RoleBinding[] | null> (null)
   const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false)
   const [roleIdToDelete, setRoleIdToDelete] = useState<string | null>(null)
-
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const rightsMapping: { [key: string]: string } = {
+    create: "Создавать",
+    read: "Читать",
+    update: "Обновлять",
+    deletable: "Удалять",
+    see_logs: "Смотреть логи",
+    give_roles: "Управлять ролями",
+    add_users: "Управлять пользователями",
+    admin_rights: "Управление пространством",
+  };
+  
   const handleOpenModal = () => {
     setOpenModal(true)
   }
@@ -121,13 +133,17 @@ const RolesPage: FC = () => {
       const response = await axiosInstance.current?.post(`/roles`, {
         name: roleName,
         for_workspace: workspaceId,
-        ...permissions,
+        ...permissions, // This will still contain English names
       })
       const newRole = response?.data
       setRoles((prev) => [...prev, newRole])
       handleCloseModal()
-    } catch (error) {
-      console.error("Failed to create role:", error)
+    } catch (error: any) {
+      if (error.response && error.response.status === 403) {
+        setErrorMessage("У вас нет прав на создание роли.")
+      } else {
+        console.error("Failed to create role:", error)
+      }
     }
   }
 
@@ -178,7 +194,10 @@ const RolesPage: FC = () => {
       })
       setRoles((prev) => prev.map((role) => (role.id === roleId ? { ...role, name: roleName, ...permissions } : role)))
       handleCloseModal()
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response.status === 403) {
+        setErrorMessage("У вас нет прав на редактирование ролей.")
+      }
       console.error("Failed to update role:", error)
     }
   }
@@ -281,7 +300,6 @@ const RolesPage: FC = () => {
     try {
       await axiosInstance.current?.post(`/role-bindings`, { role_id: selectedRoleId, user_id: userId })
       handleCloseUserModal()
-      // Optionally refresh roles or users here
     } catch (error) {
       console.error("Failed to assign role to user:", error)
     }
@@ -357,7 +375,7 @@ const RolesPage: FC = () => {
         </Box>
 
         <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 3 }}>
-          {roles.map((role) => (
+          {roles.length ? roles.map((role) => (
             <Card key={role.id} sx={{ display: "flex", flexDirection: "column" }}>
               <CardContent>
                 <Typography variant="h6" component="h2" gutterBottom>
@@ -374,7 +392,7 @@ const RolesPage: FC = () => {
                       ["Обновлять секреты", role.update],
                       ["Удалять секреты", role.deletable],
                       ["Смотреть логи", role.see_logs],
-                      ["Назначать роли", role.give_roles],
+                      ["Управлять ролями", role.give_roles],
                       ["Управлять пользователями", role.add_users],
                       ["Управление пространством", role.admin_rights],
                     ]
@@ -411,7 +429,11 @@ const RolesPage: FC = () => {
                 </Box>
               </CardActions>
             </Card>
-          ))}
+          )) : <Box sx={{ mt: 30, gridColumn: "span 3", textAlign: "center" }}>
+            <Typography variant="subtitle1" sx={{ color: "text.primary" }} gutterBottom>
+              В пространстве нет ролей, либо у вас нет прав на просмотр ролей.
+              </Typography>
+              </Box>}
         </Box>
 
         <Dialog open={openModal} onClose={handleCloseModal}>
@@ -432,17 +454,17 @@ const RolesPage: FC = () => {
                 <Typography variant="subtitle2" gutterBottom>
                   Права:
                 </Typography>
-                {Object.entries(permissions).map(([key, value]) => (
-                  <FormControlLabel
-                    key={key}
-                    control={
-                      <Checkbox
-                        checked={value}
-                        onChange={() => setPermissions((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}
-                      />
+                {Object.keys(rightsMapping).map((key) => (
+                <FormControlLabel
+                  key={key}
+                  control={
+                    <Checkbox
+                      checked={permissions[key as keyof typeof permissions]}
+                      onChange={(e) => setPermissions({ ...permissions, [key]: e.target.checked })}
+                    />
                     }
-                    label={key.charAt(0).toUpperCase() + key.slice(1).replace("_", " ")}
-                  />
+                  label={rightsMapping[key]} // Display Russian names
+                />
                 ))}
               </Box>
             </form>
@@ -522,6 +544,13 @@ const RolesPage: FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <Snackbar
+          open={Boolean(errorMessage)}
+          autoHideDuration={6000}
+          onClose={() => setErrorMessage(null)}
+          message={errorMessage}
+        />
       </Container>
     </Box>
   )

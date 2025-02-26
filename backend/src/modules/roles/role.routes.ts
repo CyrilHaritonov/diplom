@@ -62,9 +62,9 @@ export function createRoleRouter(keycloak: any) {
 
                 // Check if user has read permission in this workspace
                 const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, workspace_id as string);
-                const canRead = userRoles.some(rb => rb.role.read);
+                const canGiveRoles = userRoles.some(rb => rb.role.give_roles);
 
-                if (!canRead) {
+                if (!canGiveRoles) {
                     res.status(403).json({ error: 'Access denied: Insufficient permissions to view roles' });
                     return;
                 }
@@ -96,9 +96,9 @@ export function createRoleRouter(keycloak: any) {
 
                 // Check if user has read permission in this workspace
                 const userRoles = await RoleBindingService.findByUserAndWorkspace(userId, workspace_id as string);
-                const canRead = userRoles.some(rb => rb.role.read);
+                const canGiveRoles = userRoles.some(rb => rb.role.give_roles);
 
-                if (!canRead) {
+                if (!canGiveRoles) {
                     res.status(403).json({ error: 'Access denied: Insufficient permissions to view roles' });
                     return;
                 }

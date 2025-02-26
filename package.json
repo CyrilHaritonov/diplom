@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "@react-keycloak/web": "^3.4.0",
-    "cors": "^2.8.5",
-    "oidc-client-ts": "^3.1.0",
-    "react-oidc-context": "^3.2.0"
-  }
-}

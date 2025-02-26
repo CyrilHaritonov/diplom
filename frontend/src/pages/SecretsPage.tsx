@@ -17,13 +17,12 @@ import {
   IconButton,
   Typography,
   Box,
-  Container
+  Container,
+  Snackbar
 } from "@mui/material"
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Visibility,
-  VisibilityOff,
   ContentCopy,
   ArrowBack,
   Add as AddIcon
@@ -42,11 +41,6 @@ interface Secret {
   created_at: Date
 }
 
-interface Workspace {
-  id: string
-  name: string
-}
-
 const SecretsPage: FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>()
   const navigate = useNavigate()
@@ -61,13 +55,11 @@ const SecretsPage: FC = () => {
   const [showValue, setShowValue] = useState(false)
   const [workspaceName, setWorkspaceName] = useState<string | null>("")
   const [searchTerm, setSearchTerm] = useState("")
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const axiosInstance = useAxios(import.meta.env.VITE_API_URL)
-  const [showExpiration, setShowExpiration] = useState(false)
-  const [showSecretValue, setShowSecretValue] = useState(false)
   const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false)
   const [secretToDelete, setSecretToDelete] = useState<string | null>(null)
   const [creatorUsername, setCreatorUsername] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleOpenModal = () => {
     setOpenModal(true)
@@ -83,8 +75,8 @@ const SecretsPage: FC = () => {
 
   const handleCreateOrUpdateSecret = async (event: React.FormEvent) => {
     event.preventDefault()
-    try {
-      if (editingSecretId) {
+    if (editingSecretId) {
+      try {
         await axiosInstance.current?.put(`/secrets/${editingSecretId}`, {
           name: secretName,
           value: secretValue,
@@ -97,7 +89,15 @@ const SecretsPage: FC = () => {
               : secret,
           ),
         )
-      } else {
+      } catch (error: any) {
+          if (error.response && error.response.status === 403) {
+            setErrorMessage("У вас нет прав для редактирование секрета.")
+          } else {
+            console.error("Failed to create or update secret:", error)
+          }
+      }
+    } else {
+      try {
         const response = await axiosInstance.current?.post(`/secrets`, {
           name: secretName,
           value: secretValue,
@@ -106,12 +106,16 @@ const SecretsPage: FC = () => {
         })
         const newSecret = response?.data
         setSecrets((prev) => [...prev, newSecret])
+      } catch (error: any) {
+          if (error.response && error.response.status === 403) {
+            setErrorMessage("У вас нет прав для создания секрета.")
+          } else {
+            console.error("Failed to create or update secret:", error)
+          }
       }
-      fetchSecrets();
+      }
+      fetchSecrets()
       handleCloseModal()
-    } catch (error) {
-      console.error("Failed to create or update secret:", error)
-    }
   }
 
   const fetchSecrets = async () => {
@@ -144,7 +148,12 @@ const SecretsPage: FC = () => {
       try {
         await axiosInstance.current?.delete(`/secrets/${secretToDelete}`)
         setSecrets((prev) => prev.filter((secret) => secret.id !== secretToDelete))
-      } catch (error) {
+      } catch (error: any) {
+        if (error.response && error.response.status === 403) {
+            setErrorMessage("У вас нет прав для удаления секрета.");
+        } else {
+            console.error("Failed to delete secret:", error);
+        }
         console.error("Failed to delete secret:", error)
       } finally {
         setOpenConfirmationDialog(false)
@@ -192,26 +201,15 @@ const SecretsPage: FC = () => {
 
   const filteredSecrets = secrets.filter((secret) => secret.name.toLowerCase().includes(searchTerm.toLowerCase()))
 
-  const handleToggleExpiration = () => {
-    setShowExpiration((prev) => !prev)
-  }
 
-  const handleToggleSecretValue = () => {
-    setShowSecretValue((prev) => !prev)
+  const handleCloseSnackbar = () => {
+    setErrorMessage(null)
   }
 
   useEffect(() => {
     fetchSecrets()
     fetchWorkspace()
   }, [])
-
-  const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleMenuClose = () => {
-    setAnchorEl(null)
-  }
 
   return (
     <Box sx={{ py: 4, px: 2, backgroundColor: "#e4eff6", minHeight: "100vh", borderRadius: "5px" }}>
@@ -278,7 +276,7 @@ const SecretsPage: FC = () => {
         />
 
         <List>
-          {filteredSecrets.map((secret) => (
+          {filteredSecrets.length ? filteredSecrets.map((secret) => (
             <ListItem
               key={secret.id}
               onClick={() => handleOpenSecretModal(secret)}
@@ -320,7 +318,11 @@ const SecretsPage: FC = () => {
                 <DeleteIcon />
               </IconButton>
             </ListItem>
-          ))}
+          )) : <Box sx={{ mt: 30, gridColumn: "span 3", textAlign: "center" }}>
+            <Typography variant="subtitle1" sx={{ color: "text.primary" }} gutterBottom>
+              В пространстве нет секретов, либо у вас нет прав на просмотр секретов.
+              </Typography>
+              </Box>}
         </List>
 
         <Dialog open={openModal} onClose={handleCloseModal}>
@@ -410,9 +412,6 @@ const SecretsPage: FC = () => {
                 readOnly: true,
                 endAdornment: (
                   <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <IconButton onClick={() => setShowValue(!showValue)} size="small">
-                      {showValue ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
                     <IconButton onClick={() => handleCopyToClipboard(selectedSecret?.value || "")} size="small">
                       <ContentCopy />
                     </IconButton>
@@ -434,6 +433,13 @@ const SecretsPage: FC = () => {
             <Button onClick={handleCloseSecretModal}>Закрыть</Button>
           </DialogActions>
         </Dialog>
+
+        <Snackbar
+          open={Boolean(errorMessage)}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+          message={errorMessage}
+        />
       </Container>
     </Box>
   )

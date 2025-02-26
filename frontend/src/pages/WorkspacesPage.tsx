@@ -1,5 +1,5 @@
 "use client"
-
+import { Snackbar } from "@mui/material";
 import { type FC, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
@@ -56,6 +56,7 @@ const WorkspacesPage: FC = () => {
   const [workspaceName, setWorkspaceName] = useState("")
   const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false)
   const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { keycloak } = useKeycloak()
 
   const axiosInstance = useAxios(import.meta.env.VITE_API_URL)
@@ -70,6 +71,10 @@ const WorkspacesPage: FC = () => {
     setEditingWorkspace(workspace)
     setWorkspaceName(workspace.name)
     setOpenDialog(true)
+  }
+
+  const handleCloseSnackbar = () => {
+    setErrorMessage(null)
   }
 
   const handleSaveWorkspace = async () => {
@@ -91,7 +96,11 @@ const WorkspacesPage: FC = () => {
         setWorkspaces((prev) => [...prev, newWorkspaceWithColor])
       }
       setOpenDialog(false)
-    } catch (error) {
+      fetchWorkspaces()
+    } catch (error : any) {
+      if (error.response.status === 403) {
+        setErrorMessage("У вас нет прав на редактирование пространства.")
+      }
       console.error("Failed to save workspace:", error)
     }
   }
@@ -250,6 +259,12 @@ const WorkspacesPage: FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      <Snackbar
+          open={Boolean(errorMessage)}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+          message={errorMessage}
+        />
     </Box>
   )
 }

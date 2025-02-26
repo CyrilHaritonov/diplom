@@ -3,10 +3,6 @@ import { WorkspaceEntity } from './workspace.entity';
 import { RoleService } from '../roles/role.service';
 import { WorkspaceUserService } from '../workspace-users/workspace-user.service';
 import { RoleBindingService } from '../role-bindings/role-binding.service';
-import { SecretEntity } from '../secrets/secret.entity';
-import { WorkspaceUserEntity } from '../workspace-users/workspace-user.entity';
-import { RoleBindingEntity } from '../role-bindings/role-binding.entity';
-import { RoleEntity } from '../roles/role.entity';
 
 export class WorkspaceService {
     private static getRepository() {

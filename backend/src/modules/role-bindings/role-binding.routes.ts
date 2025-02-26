@@ -115,9 +115,9 @@ export function createRoleBindingRouter(keycloak: any) {
 
                 // Check if requesting user has read permission in this workspace
                 const userRoles = await RoleBindingService.findByUserAndWorkspace(requestingUserId, workspaceId);
-                const canRead = userRoles.some(rb => rb.role.read);
+                const canGiveRoles = userRoles.some(rb => rb.role.give_roles);
 
-                if (!canRead && requestingUserId !== userId) {
+                if (!canGiveRoles && requestingUserId !== userId) {
                     res.status(403).json({ error: 'Access denied: Insufficient permissions to view roles' });
                     return;
                 }
@@ -137,9 +137,19 @@ export function createRoleBindingRouter(keycloak: any) {
         keycloak.protect(),
         async (req, res) => {
             try {
+                // @ts-ignore - Keycloak adds user info to request
+                const requestingUserId = req.kauth?.grant?.access_token?.content?.sub;
                 const roleBinding = await RoleBindingService.findById(req.params.id);
                 if (!roleBinding) {
                     res.status(404).json({ error: 'Role binding not found' });
+                    return;
+                }
+                // Check if requesting user has role management permission in this workspace
+                const userRoles = await RoleBindingService.findByUserAndWorkspace(requestingUserId, roleBinding.role.for_workspace);
+                const canGiveRoles = userRoles.some(rb => rb.role.give_roles);
+
+                if (!canGiveRoles) {
+                    res.status(403).json({ error: 'Access denied: Insufficient permissions to delete roles' });
                     return;
                 }
                 await RoleBindingService.delete(req.params.id);
@@ -163,9 +173,9 @@ export function createRoleBindingRouter(keycloak: any) {
 
                 // Check if requesting user has read permission in this workspace
                 const userRoles = await RoleBindingService.findByUserAndWorkspace(requestingUserId, workspaceId);
-                const canRead = userRoles.some(rb => rb.role.read);
+                const canGiveRoles = userRoles.some(rb => rb.role.give_roles);
 
-                if (!canRead) {
+                if (!canGiveRoles) {
                     res.status(403).json({ error: 'Access denied: Insufficient permissions to view roles' });
                     return;
                 }
