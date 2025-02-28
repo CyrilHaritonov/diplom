@@ -7,6 +7,7 @@ import { RoleBindingEntity } from '../modules/role-bindings/role-binding.entity'
 import { WorkspaceUserEntity } from '../modules/workspace-users/workspace-user.entity';
 import { EventBindingEntity } from '../modules/event-bindings/event-binding.entity';
 import { SecretEntity } from '../modules/secrets/secret.entity';
+import { ChatBinding } from '../modules/chat-bindings/chat-binding.entity';
 
 dotenv.config();
 
@@ -17,7 +18,7 @@ export const AppDataSource = new DataSource({
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD as string || 'postgres',
     database: process.env.DB_NAME,
-    entities: [LogEntity, WorkspaceEntity, RoleEntity, RoleBindingEntity, WorkspaceUserEntity, EventBindingEntity, SecretEntity],
+    entities: [LogEntity, WorkspaceEntity, RoleEntity, RoleBindingEntity, WorkspaceUserEntity, EventBindingEntity, SecretEntity, ChatBinding],
     synchronize: process.env.NODE_ENV === 'development',
     logging: process.env.NODE_ENV === 'development'
 }); 

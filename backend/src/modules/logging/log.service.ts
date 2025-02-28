@@ -1,12 +1,13 @@
 import { AppDataSource } from '../../config/database';
 import { LogEntity } from './log.entity';
-import { ActionLog } from './types';
+import { ActionLog, LogAction, LogSubject } from './types';
 import { createWriteStream } from 'fs';
 import path from 'path';
 import fs from 'fs';
 import { WorkspaceUserService } from '../workspace-users/workspace-user.service';
 import { RoleBindingService } from '../role-bindings/role-binding.service';
 import { In, IsNull } from 'typeorm';
+import { logAction, logActionCore } from './logging.middleware';
 
 export class LogService {
     private static getRepository() {
@@ -18,29 +19,35 @@ export class LogService {
         await repository.save(log);
     }
 
-    static async getLogs(userId: string): Promise<LogEntity[]> {
+    static async getLogs(userId: string, botUrl: string, isExport?: boolean): Promise<LogEntity[]> {
         const repository = this.getRepository();
 
         // Get all workspaces where user is a member
         const workspaceUsers = await WorkspaceUserService.findByUserId(userId);
         const workspaceIds = workspaceUsers.map(wu => wu.workspace_id);
-        console.log(workspaceUsers, workspaceIds)
+        
         // Get user's roles in these workspaces
         const roleBindings = await Promise.all(
             workspaceIds.map(workspaceId => 
                 RoleBindingService.findByUserAndWorkspace(userId, workspaceId)
             )
         );
-        console.log(roleBindings)
+        
         // Filter workspaces where user has see_logs permission
         const authorizedWorkspaceIds = roleBindings
             .flat()
             .filter(rb => rb?.role.see_logs)
             .map(rb => rb.role.for_workspace);
-        console.log(authorizedWorkspaceIds)
         // Get logs only from authorized workspaces
         if (authorizedWorkspaceIds.length === 0) {
             return [];
+        }
+        for (const workspace_id of authorizedWorkspaceIds) {
+            if (isExport) {
+                await logActionCore(userId, LogAction.EXPORT, LogSubject.LOG, botUrl, workspace_id);
+            } else {
+                await logActionCore(userId, LogAction.ACCESS, LogSubject.LOG, botUrl, workspace_id);
+            }
         }
 
         return repository.find({
@@ -54,8 +61,8 @@ export class LogService {
         });
     }
 
-    static async exportLogsToFile(userId: string): Promise<string> {
-        const logs = await this.getLogs(userId);
+    static async exportLogsToFile(userId: string, botUrl: string): Promise<string> {
+        const logs = await this.getLogs(userId, botUrl, true);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `logs_${timestamp}.csv`;
         const filepath = path.join(process.cwd(), 'exports', filename);

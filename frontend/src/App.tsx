@@ -18,6 +18,7 @@ import UsersPage from "./pages/UsersPage"
 import { PrivateRoute } from "./utils/PrivateRoute"
 import { useAxios } from "./utils/hooks"
 import AnimatedBackground from "./utils/AnimatedBackground"
+import NotificationsPage from "./pages/NotificationsPage"
 
 const AppRouter: FC = () => {
   const { keycloak } = useKeycloak()
@@ -206,6 +207,7 @@ const AppRouter: FC = () => {
           <Route path="/workspaces/:workspaceId/secrets" element={<PrivateRoute element={<SecretsPage />} />} />
           <Route path="/workspaces/:workspaceId/roles" element={<PrivateRoute element={<RolesPage />} />} />
           <Route path="/workspaces/:workspaceId/users" element={<PrivateRoute element={<UsersPage />} />} />
+          <Route path="/workspaces/:workspaceId/notifications" element={<PrivateRoute element={<NotificationsPage />} />} />
           <Route path="/events" element={<PrivateRoute element={<EventsPage />} />} />
           <Route path="/telegram" element={<PrivateRoute element={<TelegramPage />}/>} />
         </Routes>

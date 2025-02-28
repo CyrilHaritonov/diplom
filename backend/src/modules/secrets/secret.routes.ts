@@ -4,7 +4,7 @@ import { logAction } from '../logging/logging.middleware';
 import { LogAction, LogSubject } from '../logging/types';
 import { RoleBindingService } from '../role-bindings/role-binding.service';
 
-export function createSecretRouter(keycloak: any) {
+export function createSecretRouter(keycloak: any, botUrl: string) {
     const router = express.Router();
 
     // Create secret
@@ -32,7 +32,7 @@ export function createSecretRouter(keycloak: any) {
                     created_by: userId,
                     expires_at: expires_at ? new Date(expires_at) : undefined
                 });
-                await logAction(LogAction.CREATE, LogSubject.SECRET, workspace_id)(req, res, () => {});
+                await logAction(LogAction.CREATE, LogSubject.SECRET, botUrl, workspace_id)(req, res, () => {});
                 res.status(201).json(secret);
             } catch (error) {
                 console.error('Failed to create secret:', error);
@@ -60,7 +60,7 @@ export function createSecretRouter(keycloak: any) {
                 }
 
                 const secrets = await SecretService.findAll(workspaceId);
-                await logAction(LogAction.READ, LogSubject.SECRET, workspaceId)(req, res, () => {});
+                await logAction(LogAction.READ, LogSubject.SECRET, botUrl, workspaceId)(req, res, () => {});
                 res.json(secrets);
             } catch (error) {
                 console.error('Failed to fetch secrets:', error);
@@ -92,7 +92,7 @@ export function createSecretRouter(keycloak: any) {
                     return;
                 }
 
-                await logAction(LogAction.READ, LogSubject.SECRET, secret.workspace_id)(req, res, () => {});
+                await logAction(LogAction.READ, LogSubject.SECRET, botUrl, secret.workspace_id)(req, res, () => {});
                 res.json(secret);
             } catch (error) {
                 console.error('Failed to fetch secret:', error);
@@ -132,7 +132,7 @@ export function createSecretRouter(keycloak: any) {
                     expires_at: expires_at ? new Date(expires_at) : null
                 });
                 if (secret) {
-                    await logAction(LogAction.UPDATE, LogSubject.SECRET, existingSecret.workspace_id)(req, res, () => {});
+                    await logAction(LogAction.UPDATE, LogSubject.SECRET, botUrl, existingSecret.workspace_id)(req, res, () => {});
                 }
                 res.json(secret);
             } catch (error) {
@@ -167,7 +167,7 @@ export function createSecretRouter(keycloak: any) {
                 }
 
                 await SecretService.delete(req.params.id);
-                await logAction(LogAction.DELETE, LogSubject.SECRET, secret.workspace_id)(req, res, () => {});
+                await logAction(LogAction.DELETE, LogSubject.SECRET, botUrl, secret.workspace_id)(req, res, () => {});
                 res.status(204).send();
             } catch (error) {
                 console.error('Failed to delete secret:', error);

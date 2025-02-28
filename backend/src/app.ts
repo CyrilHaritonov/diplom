@@ -11,6 +11,7 @@ import { createRoleBindingRouter } from './modules/role-bindings/role-binding.ro
 import { createWorkspaceUserRouter } from './modules/workspace-users/workspace-user.routes';
 import { createEventBindingRouter } from './modules/event-bindings/event-binding.routes';
 import { createSecretRouter } from './modules/secrets/secret.routes';
+import { createChatBindingRouter } from './modules/chat-bindings/chat-binding.routes';
 import dotenv from 'dotenv';
 
 const app: Express = express();
@@ -39,14 +40,15 @@ async function initializeApp() {
 
     // Auth routes - initialize after Keycloak is ready
     const keycloak = getKeycloak();
-    app.use('/auth', createAuthRouter(keycloak));
-    app.use('/logs', createLoggingRouter(keycloak));
-    app.use('/workspaces', createWorkspaceRouter(keycloak));
-    app.use('/roles', createRoleRouter(keycloak));
-    app.use('/role-bindings', createRoleBindingRouter(keycloak));
-    app.use('/workspace-users', createWorkspaceUserRouter(keycloak));
-    app.use('/event-bindings', createEventBindingRouter(keycloak));
-    app.use('/secrets', createSecretRouter(keycloak));
+    app.use('/auth', createAuthRouter(keycloak, process.env.BOT_URL as string));
+    app.use('/logs', createLoggingRouter(keycloak, process.env.BOT_URL as string));
+    app.use('/workspaces', createWorkspaceRouter(keycloak, process.env.BOT_URL as string));
+    app.use('/roles', createRoleRouter(keycloak, process.env.BOT_URL as string));
+    app.use('/role-bindings', createRoleBindingRouter(keycloak, process.env.BOT_URL as string));
+    app.use('/workspace-users', createWorkspaceUserRouter(keycloak, process.env.BOT_URL as string));
+    app.use('/event-bindings', createEventBindingRouter(keycloak, process.env.BOT_URL as string));
+    app.use('/secrets', createSecretRouter(keycloak, process.env.BOT_URL as string));
+    app.use('/chat-bindings', createChatBindingRouter(keycloak, process.env.ALLOWED_FQDN as string, process.env.BOT_URL as string));
 
     app.get('/', (req: Request, res: Response) => {
         res.send('Express + TypeScript Server');

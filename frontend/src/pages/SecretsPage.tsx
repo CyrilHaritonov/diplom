@@ -262,6 +262,9 @@ const SecretsPage: FC = () => {
           <Button variant="outlined" component={Link} to={`/workspaces/${workspaceId}/roles`}>
             Роли
           </Button>
+          <Button variant="outlined" component={Link} to={`/workspaces/${workspaceId}/notifications`}>
+            Уведомления
+          </Button>
         </Box>
 
         <TextField

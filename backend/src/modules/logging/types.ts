@@ -18,7 +18,8 @@ export enum LogSubject {
     LOG = 'log',
     USER_WORKSPACE_ROLES = 'user_workspace_roles',
     EVENT_BINDING = 'event_binding',
-    SECRET = 'secret'
+    SECRET = 'secret',
+    CHAT_BINDING= 'chat_binding'
 }
 
 export interface ActionLog {

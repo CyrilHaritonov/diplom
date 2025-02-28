@@ -372,6 +372,9 @@ const RolesPage: FC = () => {
           >
             Роли
           </Button>
+          <Button variant="outlined" component={Link} to={`/workspaces/${workspaceId}/notifications`}>
+            Уведомления
+          </Button>
         </Box>
 
         <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 3 }}>

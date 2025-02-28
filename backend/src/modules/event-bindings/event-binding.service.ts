@@ -9,17 +9,20 @@ export class EventBindingService {
 
     static async create(data: {
         user_id: string,
-        type: LogAction
+        type: LogAction,
+        workspace_id: string
     }): Promise<EventBindingEntity> {
         const repository = this.getRepository();
         const eventBinding = repository.create(data);
         return repository.save(eventBinding);
     }
 
-    static async findAll(userId?: string): Promise<EventBindingEntity[]> {
+    static async findAll(userId: string): Promise<EventBindingEntity[]> {
         const repository = this.getRepository();
         return repository.find({
-            where: userId ? { user_id: userId } : undefined
+            where: {
+                user_id: userId
+            }
         });
     }
 
@@ -28,9 +31,9 @@ export class EventBindingService {
         return repository.findOneBy({ id });
     }
 
-    static async update(id: string, type: LogAction): Promise<EventBindingEntity | null> {
+    static async update(id: string, type: LogAction, workspace_id: string): Promise<EventBindingEntity | null> {
         const repository = this.getRepository();
-        await repository.update(id, { type });
+        await repository.update(id, { type, workspace_id });
         return this.findById(id);
     }
 

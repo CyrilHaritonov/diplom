@@ -14,4 +14,7 @@ export class EventBindingEntity {
         enum: LogAction
     })
     type: LogAction;
+
+    @Column()
+    workspace_id: string;
 } 

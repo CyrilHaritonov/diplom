@@ -2,23 +2,34 @@ import express from 'express';
 import { EventBindingService } from './event-binding.service';
 import { logAction } from '../logging/logging.middleware';
 import { LogAction, LogSubject } from '../logging/types';
+import { RoleBindingService } from '../role-bindings/role-binding.service';
 
-export function createEventBindingRouter(keycloak: any) {
+export function createEventBindingRouter(keycloak: any, botUrl: string) {
     const router = express.Router();
 
     // Create event binding
     router.post('/',
         keycloak.protect(),
-        logAction(LogAction.CREATE, LogSubject.EVENT_BINDING),
+        logAction(LogAction.CREATE, LogSubject.EVENT_BINDING, botUrl),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const { type } = req.body;
+                const { type, workspace_id } = req.body;
+
+                // Check if user has see_logs permission in this workspace
+                const roleBindings = await RoleBindingService.findByUserAndWorkspace(userId, workspace_id);
+                const canSeeLogs = roleBindings.some(rb => rb.role.see_logs);
+
+                if (!canSeeLogs) {
+                    res.status(403).json({ error: 'Access denied: Insufficient permissions to view logs' });
+                    return;
+                }
                 
                 const eventBinding = await EventBindingService.create({
                     user_id: userId,
-                    type
+                    type,
+                    workspace_id
                 });
                 res.status(201).json(eventBinding);
             } catch (error) {
@@ -28,85 +39,10 @@ export function createEventBindingRouter(keycloak: any) {
         }
     );
 
-    // Get user's event bindings
-    router.get('/',
-        keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.EVENT_BINDING),
-        async (req, res): Promise<void> => {
-            try {
-                // @ts-ignore - Keycloak adds user info to request
-                const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const eventBindings = await EventBindingService.findAll(userId);
-                res.json(eventBindings);
-            } catch (error) {
-                console.error('Failed to fetch event bindings:', error);
-                res.status(500).json({ error: 'Failed to fetch event bindings' });
-            }
-        }
-    );
-
-    // Get user's event binding by ID
-    router.get('/:id',
-        keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.EVENT_BINDING),
-        async (req, res): Promise<void> => {
-            try {
-                // @ts-ignore - Keycloak adds user info to request
-                const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const eventBinding = await EventBindingService.findById(req.params.id);
-                
-                if (!eventBinding) {
-                    res.status(404).json({ error: 'Event binding not found' });
-                    return;
-                }
-
-                if (eventBinding.user_id !== userId) {
-                    res.status(403).json({ error: 'Access denied' });
-                    return;
-                }
-
-                res.json(eventBinding);
-            } catch (error) {
-                console.error('Failed to fetch event binding:', error);
-                res.status(500).json({ error: 'Failed to fetch event binding' });
-            }
-        }
-    );
-
-    // Update user's event binding
-    router.put('/:id',
-        keycloak.protect(),
-        logAction(LogAction.UPDATE, LogSubject.EVENT_BINDING),
-        async (req, res): Promise<void> => {
-            try {
-                // @ts-ignore - Keycloak adds user info to request
-                const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const { type } = req.body;
-
-                const existing = await EventBindingService.findById(req.params.id);
-                if (!existing) {
-                    res.status(404).json({ error: 'Event binding not found' });
-                    return;
-                }
-
-                if (existing.user_id !== userId) {
-                    res.status(403).json({ error: 'Access denied' });
-                    return;
-                }
-
-                const eventBinding = await EventBindingService.update(req.params.id, type);
-                res.json(eventBinding);
-            } catch (error) {
-                console.error('Failed to update event binding:', error);
-                res.status(500).json({ error: 'Failed to update event binding' });
-            }
-        }
-    );
-
     // Delete user's event binding
     router.delete('/:id',
         keycloak.protect(),
-        logAction(LogAction.DELETE, LogSubject.EVENT_BINDING),
+        logAction(LogAction.DELETE, LogSubject.EVENT_BINDING, botUrl),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -128,6 +64,31 @@ export function createEventBindingRouter(keycloak: any) {
             } catch (error) {
                 console.error('Failed to delete event binding:', error);
                 res.status(500).json({ error: 'Failed to delete event binding' });
+            }
+        }
+    );
+
+    router.get('/bindings',
+        keycloak.protect(),
+        logAction(LogAction.READ, LogSubject.EVENT_BINDING, botUrl),
+        async (req, res): Promise<void> => {
+            try {
+                // @ts-ignore - Keycloak adds user info to request
+                const userId = req.kauth?.grant?.access_token?.content?.sub;
+                const { workspace_id } = req.query;
+
+                if (!workspace_id) {
+                    res.status(400).json({ error: 'Workspace ID is required' });
+                    return;
+                }
+
+                const eventBindings = await EventBindingService.findAll(userId);
+                const filteredBindings = eventBindings.filter(binding => binding.workspace_id === workspace_id);
+
+                res.json(filteredBindings);
+            } catch (error) {
+                console.error('Failed to retrieve event bindings:', error);
+                res.status(500).json({ error: 'Failed to retrieve event bindings' });
             }
         }
     );

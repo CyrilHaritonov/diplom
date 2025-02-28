@@ -4,7 +4,7 @@ import { logAction } from '../logging/logging.middleware';
 import { LogAction, LogSubject } from '../logging/types';
 import { RoleBindingService } from '../role-bindings/role-binding.service';
 
-export function createWorkspaceUserRouter(keycloak: any) {
+export function createWorkspaceUserRouter(keycloak: any, botUrl: string) {
     const router = express.Router();
 
     // Add user to workspace
@@ -29,7 +29,7 @@ export function createWorkspaceUserRouter(keycloak: any) {
                     workspace_id,
                     user_id
                 });
-                await logAction(LogAction.CREATE, LogSubject.WORKSPACE_USER, workspace_id)(req, res, () => {});
+                await logAction(LogAction.CREATE, LogSubject.WORKSPACE_USER, botUrl, workspace_id)(req, res, () => {});
                 res.status(201).json(workspaceUser);
             } catch (error) {
                 console.error('Failed to add user to workspace:', error);
@@ -72,7 +72,7 @@ export function createWorkspaceUserRouter(keycloak: any) {
                     };
                 }));
 
-                await logAction(LogAction.READ, LogSubject.WORKSPACE_USER, workspace_id as string)(req, res, () => {});
+                await logAction(LogAction.READ, LogSubject.WORKSPACE_USER, botUrl, workspace_id as string)(req, res, () => {});
                 res.json(usersWithRoles);
             } catch (error) {
                 console.error('Failed to fetch workspace users:', error);
@@ -95,7 +95,7 @@ export function createWorkspaceUserRouter(keycloak: any) {
                     res.status(404).json({ error: 'You are not a member of this workspace' });
                     return;
                 }
-                await logAction(LogAction.READ, LogSubject.WORKSPACE_USER, workspaceId)(req, res, () => {});
+                await logAction(LogAction.READ, LogSubject.WORKSPACE_USER, botUrl, workspaceId)(req, res, () => {});
                 res.json(workspaceUser);
             } catch (error) {
                 console.error('Failed to fetch workspace user:', error);
@@ -123,7 +123,7 @@ export function createWorkspaceUserRouter(keycloak: any) {
                 }
 
                 const workspaceUser = await WorkspaceUserService.findByUserAndWorkspace(userId, workspaceId);
-                await logAction(LogAction.READ, LogSubject.WORKSPACE_USER, workspaceId)(req, res, () => {});
+                await logAction(LogAction.READ, LogSubject.WORKSPACE_USER, botUrl, workspaceId)(req, res, () => {});
                 res.json({ isMember: !!workspaceUser });
             } catch (error) {
                 console.error('Failed to check workspace membership:', error);
@@ -155,7 +155,7 @@ export function createWorkspaceUserRouter(keycloak: any) {
                 }
 
                 await WorkspaceUserService.delete(req.params.id);
-                await logAction(LogAction.DELETE, LogSubject.WORKSPACE_USER, workspaceUser.workspace_id)(req, res, () => {});
+                await logAction(LogAction.DELETE, LogSubject.WORKSPACE_USER, botUrl, workspaceUser.workspace_id)(req, res, () => {});
                 res.status(204).send();
             } catch (error) {
                 console.error('Failed to remove user from workspace:', error);

@@ -7,6 +7,49 @@ interface User {
     username: string
 }
 
+export async function getUsernameByUserId(userId: string): Promise<string | null> {
+    const keycloakTokenUrl = `${process.env.KEYCLOAK_AUTH_SERVER_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`;
+
+    const adminUsername = process.env.KEYCLOAK_ADMIN_USERNAME;
+    const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD;
+    const adminClientId = process.env.KEYCLOAK_CLIENT_ID;
+
+    if (!adminUsername || !adminPassword || !adminClientId) {
+        throw new Error("Admin credentials are not set in environment variables.");
+    }
+
+    try {
+        // Step 1: Obtain access token
+        const tokenResponse = await axios.post(
+            keycloakTokenUrl,
+            new URLSearchParams({
+                username: adminUsername,
+                password: adminPassword,
+                client_id: adminClientId,
+                grant_type: "password",
+            }),
+            {
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            }
+        );
+
+        const accessToken = tokenResponse.data.access_token;
+
+        // Step 2: Fetch user details based on the user ID
+        const response = await axios.get(
+            `${process.env.KEYCLOAK_AUTH_SERVER_URL}/admin/realms/${process.env.KEYCLOAK_REALM}/users/${userId}`,
+            {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            }
+        );
+
+        return response.data?.username || null;
+    } catch (error) {
+        console.error("Failed to retrieve username:", error);
+        return null;
+    }
+}
+
 export class AuthController {
     static login(req: Request, res: Response) {
         return getKeycloak().protect()(req, res, () => {
@@ -78,53 +121,24 @@ export class AuthController {
         }
     }
 
+    
+
     // Method to get username by user ID
     static async getUsernameByUserId(req: Request, res: Response): Promise<void> {
-            const { userId } = req.params; // Assuming username is passed as a URL parameter
-            const keycloakTokenUrl = `${process.env.KEYCLOAK_AUTH_SERVER_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`;
-            
-            // Get Keycloak admin credentials from environment variables
-            const adminUsername = process.env.KEYCLOAK_ADMIN_USERNAME;
-            const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD;
-            const adminClientId = process.env.KEYCLOAK_CLIENT_ID;
-            if (!adminUsername || !adminPassword || !adminClientId) {
-                res.status(400).json({ error: 'Admin username, password and client id env variables are not set' });
-                return; // Ensure to return after sending a response
-            }
+        const { userId } = req.params;
 
-            try {
-            // Step 1: Obtain access token
-            const tokenResponse = await axios.post(keycloakTokenUrl, new URLSearchParams({
-                username: adminUsername as string,
-                password: adminPassword as string,
-                client_id: adminClientId as string,
-                grant_type: 'password',
-            }), {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-            });
-
-            const accessToken = tokenResponse.data.access_token;
-
-            // Step 2: Fetch user details based on the user ID
-            const response = await axios.get(`${process.env.KEYCLOAK_AUTH_SERVER_URL}/admin/realms/${process.env.KEYCLOAK_REALM}/users/${userId}`, {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            });
-
-            const user = response.data;
-            if (user) {
-                res.json({ username: user.username }); // Return the username
+        try {
+            const username = await getUsernameByUserId(userId);
+            if (username) {
+                res.json({ username });
             } else {
-                res.status(404).json({ error: 'User not found' });
+                res.status(404).json({ error: "User not found" });
             }
         } catch (error) {
-            console.error('Failed to retrieve username:', error);
-            res.status(500).json({ error: 'Failed to retrieve username' });
+            res.status(500).json({ error: "Failed to retrieve username" });
         }
     }
+
 
     static async getUsers(req: Request, res: Response): Promise<void> {
         const keycloakTokenUrl = `${process.env.KEYCLOAK_AUTH_SERVER_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`;

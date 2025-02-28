@@ -4,13 +4,12 @@ import { logAction } from './logging.middleware';
 import { LogAction, LogSubject } from './types';
 import { RoleBindingService } from '../role-bindings/role-binding.service';
 
-export function createLoggingRouter(keycloak: any) {
+export function createLoggingRouter(keycloak: any, botUrl: string) {
     const router = express.Router();
 
     // Get workspace logs
     router.get('/workspace/:workspaceId',
         keycloak.protect(),
-        logAction(LogAction.ACCESS, LogSubject.LOG),
         async (req, res): Promise<void> => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -38,12 +37,11 @@ export function createLoggingRouter(keycloak: any) {
     // Export logs route
     router.get('/export',
         keycloak.protect(),
-        logAction(LogAction.EXPORT, LogSubject.LOG),
         async (req, res) => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const filepath = await LogService.exportLogsToFile(userId);
+                const filepath = await LogService.exportLogsToFile(userId, botUrl);
                 res.download(filepath);
             } catch (error) {
                 console.error('Failed to export logs:', error);
@@ -55,12 +53,11 @@ export function createLoggingRouter(keycloak: any) {
     // Get logs
     router.get('/',
         keycloak.protect(),
-        logAction(LogAction.ACCESS, LogSubject.LOG),
         async (req, res) => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
                 const userId = req.kauth?.grant?.access_token?.content?.sub;
-                const logs = await LogService.getLogs(userId);
+                const logs = await LogService.getLogs(userId, botUrl);
                 res.json(logs);
             } catch (error) {
                 console.error('Failed to fetch logs:', error);

@@ -4,7 +4,7 @@ import { logAction } from '../logging/logging.middleware';
 import { LogAction, LogSubject } from '../logging/types';
 import { RoleBindingService } from '../role-bindings/role-binding.service';
 
-export function createWorkspaceRouter(keycloak: any) {
+export function createWorkspaceRouter(keycloak: any, botUrl: string) {
     const router = express.Router();
 
     // Create workspace
@@ -22,6 +22,7 @@ export function createWorkspaceRouter(keycloak: any) {
                 await logAction(
                     LogAction.CREATE, 
                     LogSubject.WORKSPACE, 
+                    botUrl,
                     workspace.id
                 )(req, res, () => {});
                 
@@ -36,7 +37,7 @@ export function createWorkspaceRouter(keycloak: any) {
     // Get all workspaces
     router.get('/',
         keycloak.protect(),
-        logAction(LogAction.READ, LogSubject.WORKSPACE),
+        logAction(LogAction.READ, LogSubject.WORKSPACE, botUrl),
         async (req, res) => {
             try {
                 // @ts-ignore - Keycloak adds user info to request
@@ -60,7 +61,7 @@ export function createWorkspaceRouter(keycloak: any) {
                     res.status(404).json({ error: 'Workspace not found' });
                     return;
                 }
-                await logAction(LogAction.READ, LogSubject.WORKSPACE, workspace.id)(req, res, () => {});
+                await logAction(LogAction.READ, LogSubject.WORKSPACE, botUrl, workspace.id)(req, res, () => {});
                 res.json(workspace);
             } catch (error) {
                 console.error('Failed to fetch workspace:', error);
@@ -96,7 +97,7 @@ export function createWorkspaceRouter(keycloak: any) {
 
                 const workspace = await WorkspaceService.update(req.params.id, { name: name as string });
                 if (workspace) {
-                    await logAction(LogAction.UPDATE, LogSubject.WORKSPACE, workspace.id)(req, res, () => {});
+                    await logAction(LogAction.UPDATE, LogSubject.WORKSPACE, botUrl, workspace.id)(req, res, () => {});
                 }
                 res.json(workspace);
             } catch (error) {
@@ -131,7 +132,7 @@ export function createWorkspaceRouter(keycloak: any) {
                 }
 
                 await WorkspaceService.delete(req.params.id);
-                await logAction(LogAction.DELETE, LogSubject.WORKSPACE, req.params.id)(req, res, () => {});
+                await logAction(LogAction.DELETE, LogSubject.WORKSPACE, botUrl, req.params.id)(req, res, () => {});
                 res.status(204).send();
             } catch (error) {
                 console.error('Failed to delete workspace:', error);

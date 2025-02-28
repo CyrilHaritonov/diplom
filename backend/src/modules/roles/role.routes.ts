@@ -4,7 +4,7 @@ import { logAction } from '../logging/logging.middleware';
 import { LogAction, LogSubject } from '../logging/types';
 import { RoleBindingService } from '../role-bindings/role-binding.service';
 
-export function createRoleRouter(keycloak: any) {
+export function createRoleRouter(keycloak: any, botUrl: string) {
     const router = express.Router();
 
     // Create role
@@ -37,7 +37,7 @@ export function createRoleRouter(keycloak: any) {
                     add_users,
                     admin_rights
                 });
-                await logAction(LogAction.CREATE, LogSubject.ROLE, for_workspace)(req, res, () => {});
+                await logAction(LogAction.CREATE, LogSubject.ROLE, botUrl, for_workspace)(req, res, () => {});
                 res.status(201).json(role);
             } catch (error) {
                 console.error('Failed to create role:', error);
@@ -70,7 +70,7 @@ export function createRoleRouter(keycloak: any) {
                 }
 
                 const roles = await RoleService.findAll(workspace_id as string);
-                await logAction(LogAction.READ, LogSubject.ROLE, workspace_id as string)(req, res, () => {});
+                await logAction(LogAction.READ, LogSubject.ROLE, botUrl, workspace_id as string)(req, res, () => {});
                 res.json(roles);
             } catch (error) {
                 console.error('Failed to fetch roles:', error);
@@ -108,7 +108,7 @@ export function createRoleRouter(keycloak: any) {
                     res.status(404).json({ error: 'Role not found' });
                     return;
                 }
-                await logAction(LogAction.READ, LogSubject.ROLE, workspace_id as string)(req, res, () => {});
+                await logAction(LogAction.READ, LogSubject.ROLE, botUrl, workspace_id as string)(req, res, () => {});
                 res.json(role);
             } catch (error) {
                 console.error('Failed to fetch role:', error);
@@ -164,7 +164,7 @@ export function createRoleRouter(keycloak: any) {
                     admin_rights
                 });
                 if (role) {
-                    await logAction(LogAction.UPDATE, LogSubject.ROLE, existingRole.for_workspace)(req, res, () => {});
+                    await logAction(LogAction.UPDATE, LogSubject.ROLE, botUrl, existingRole.for_workspace)(req, res, () => {});
                 }
                 res.json(role);
             } catch (error) {
@@ -200,7 +200,7 @@ export function createRoleRouter(keycloak: any) {
 
                 // Delete role and its bindings
                 await RoleService.deleteWithBindings(req.params.id);
-                await logAction(LogAction.DELETE, LogSubject.ROLE, existingRole.for_workspace)(req, res, () => {});
+                await logAction(LogAction.DELETE, LogSubject.ROLE, botUrl, existingRole.for_workspace)(req, res, () => {});
                 res.status(204).send();
             } catch (error) {
                 console.error('Failed to delete role:', error);
