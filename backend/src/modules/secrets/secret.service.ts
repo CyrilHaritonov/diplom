@@ -80,4 +80,12 @@ export class SecretService {
         const repository = this.getRepository();
         await repository.delete(id);
     }
+
+    static async deleteExpiredSecrets(): Promise<void> {
+        const repository = this.getRepository();
+        const now = new Date();
+        await repository.delete({
+            expires_at: LessThan(now)
+        });
+    }
 } 

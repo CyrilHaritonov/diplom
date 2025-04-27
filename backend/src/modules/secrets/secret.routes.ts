@@ -176,5 +176,19 @@ export function createSecretRouter(keycloak: any, botUrl: string) {
         }
     );
 
+    // Delete expired secrets
+    router.patch('/expired',
+        keycloak.protect(),
+        async (req, res) => {
+            try {
+                await SecretService.deleteExpiredSecrets();
+                res.status(204).send();
+            } catch (error) {
+                console.error('Failed to delete expired secrets:', error);
+                res.status(500).json({ error: 'Failed to delete expired secrets' });
+            }
+        }
+    );
+
     return router;
 } 
